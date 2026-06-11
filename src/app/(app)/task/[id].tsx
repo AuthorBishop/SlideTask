@@ -10,14 +10,12 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Trash2, Check, X, GripVertical } from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, Check, X } from 'lucide-react-native';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { TaskWithNodes, TaskNode, TASK_COLORS } from '@/types/types';
 import {
   fetchTaskById,
@@ -26,7 +24,6 @@ import {
   addNode,
   deleteNode,
   updateNodeTitle,
-  reorderNodes,
   updateTaskProgress,
 } from '@/db/api';
 
@@ -36,128 +33,6 @@ function SectionHeader({ label }: { label: string }) {
     <Text className="text-xs font-glow-sans-sc text-muted-foreground uppercase tracking-widest mb-3">
       {label}
     </Text>
-  );
-}
-
-// ─── 可拖拽节点行（独立组件，确保 Hooks 合法调用）────────
-interface DraggableNodeRowProps {
-  node: TaskNode;
-  idx: number;
-  totalNodes: number;
-  progressPosition: number;
-  isEditing: boolean;
-  accentColor: string;
-  onPressEdit: () => void;
-  onDelete: () => void;
-  onLayout: (idx: number, y: number, height: number) => void;
-  editingNodeText: string;
-  onChangeEditText: (t: string) => void;
-  onSaveNodeTitle: () => void;
-  nodeInputRef: React.RefObject<TextInput | null>;
-  onDragStart: (idx: number) => void;
-  onDragUpdate: (translationY: number) => void;
-  onDragEnd: (idx: number, translationY: number) => void;
-  isDragging: boolean;
-  dragTranslateY: number;
-}
-
-function DraggableNodeRow({
-  node, idx, totalNodes, progressPosition, isEditing,
-  accentColor, onPressEdit, onDelete, onLayout,
-  editingNodeText, onChangeEditText, onSaveNodeTitle, nodeInputRef,
-  onDragStart, onDragUpdate, onDragEnd, isDragging, dragTranslateY,
-}: DraggableNodeRowProps) {
-  // Hooks 在子组件顶层合法调用
-  const dragActive = useSharedValue(false);
-
-  const step = totalNodes > 1 ? 1 / (totalNodes - 1) : 1;
-  const nodePos = idx * step;
-  const isCompleted = nodePos <= progressPosition + 0.001;
-
-  const longPress = Gesture.LongPress()
-    .minDuration(350)
-    .onStart(() => {
-      dragActive.value = true;
-      runOnJS(onDragStart)(idx);
-    });
-
-  const pan = Gesture.Pan()
-    .onUpdate((e) => {
-      if (!dragActive.value) return;
-      runOnJS(onDragUpdate)(e.translationY);
-    })
-    .onEnd((e) => {
-      dragActive.value = false;
-      runOnJS(onDragEnd)(idx, e.translationY);
-    });
-
-  const composedGesture = Gesture.Simultaneous(longPress, pan);
-
-  return (
-    <View
-      className="flex-row items-center mb-2 py-3 px-4 rounded-2xl"
-      style={{
-        backgroundColor: isDragging ? '#FFFFFF' : isCompleted ? `${accentColor}0D` : '#F8F9FB',
-        borderCurve: 'continuous',
-        transform: isDragging ? [{ translateY: dragTranslateY }] : [],
-        zIndex: isDragging ? 99 : 1,
-        shadowColor: isDragging ? '#000' : 'transparent',
-        shadowOffset: isDragging ? { width: 0, height: 6 } : { width: 0, height: 0 },
-        shadowOpacity: isDragging ? 0.12 : 0,
-        shadowRadius: isDragging ? 12 : 0,
-        elevation: isDragging ? 8 : 0,
-      }}
-      onLayout={(e) => onLayout(idx, e.nativeEvent.layout.y, e.nativeEvent.layout.height)}
-    >
-      {/* 拖拽手柄 */}
-      <GestureDetector gesture={composedGesture}>
-        <View className="mr-2 p-1">
-          <GripVertical size={16} color="#D1D5DB" />
-        </View>
-      </GestureDetector>
-
-      {/* 状态指示圆 */}
-      <View
-        className="w-7 h-7 rounded-full items-center justify-center mr-3 flex-shrink-0"
-        style={{ backgroundColor: isCompleted ? accentColor : '#E5E7EB' }}
-      >
-        {isCompleted ? (
-          <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
-        ) : (
-          <Text className="text-xs font-glow-sans-sc text-muted-foreground">{idx + 1}</Text>
-        )}
-      </View>
-
-      {/* 节点标题 */}
-      {isEditing ? (
-        <TextInput
-          ref={nodeInputRef}
-          value={editingNodeText}
-          onChangeText={onChangeEditText}
-          onBlur={onSaveNodeTitle}
-          onSubmitEditing={onSaveNodeTitle}
-          returnKeyType="done"
-          className="flex-1 text-sm font-glow-sans-sc text-foreground"
-          autoFocus
-        />
-      ) : (
-        <Pressable className="flex-1" onPress={onPressEdit}>
-          <Text
-            className="text-sm font-glow-sans-sc"
-            style={{ color: isCompleted ? accentColor : '#374151' }}
-          >
-            {node.title}
-          </Text>
-        </Pressable>
-      )}
-
-      {/* 删除 */}
-      {!isEditing && (
-        <Pressable onPress={onDelete} className="ml-2 p-1">
-          <X size={15} color="#D1D5DB" />
-        </Pressable>
-      )}
-    </View>
   );
 }
 
@@ -180,13 +55,6 @@ export default function TaskDetailScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 节点拖拽排序
-  const [localNodes, setLocalNodes] = useState<TaskNode[]>([]);
-  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
-  const [dragTranslateY, setDragTranslateY] = useState(0);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
-  const nodeLayouts = useRef<{ y: number; height: number }[]>([]);
-
   const newNodeInputRef = useRef<TextInput>(null);
   const nodeInputRef = useRef<TextInput>(null);
   const deleteConfirmAnim = useSharedValue(0);
@@ -197,7 +65,6 @@ export default function TaskDetailScreen() {
       const data = await fetchTaskById(id);
       if (data) {
         setTask(data);
-        setLocalNodes(data.nodes);
         setEditTitle(data.title);
         setEditNote(data.note || '');
         setEditColor(data.color);
@@ -238,13 +105,10 @@ export default function TaskDetailScreen() {
 
   const handleDeleteNode = async (nodeId: string) => {
     if (!task) return;
-    if (localNodes.length <= 1) { setErrorMsg('至少需要保留一个节点'); return; }
+    if (task.nodes.length <= 1) { setErrorMsg('至少需要保留一个节点'); return; }
     setErrorMsg('');
     try {
       await deleteNode(nodeId);
-      const remaining = localNodes.filter((n) => n.id !== nodeId);
-      // 仅重排 position，不碰 progress_position
-      await reorderNodes(remaining.map((n, i) => ({ id: n.id, position: i })));
       await updateTaskProgress(task.id, Math.min(task.progress_position, 1));
       await loadTask();
     } catch (e) { console.error('删除节点失败', e); }
@@ -255,58 +119,6 @@ export default function TaskDetailScreen() {
     try { await deleteTask(task.id); router.back(); }
     catch (e) { console.error('删除任务失败', e); }
   };
-
-  // ── 节点布局测量 ──────────────────────────────────────
-  const handleNodeLayout = useCallback((idx: number, y: number, height: number) => {
-    nodeLayouts.current[idx] = { y, height };
-  }, []);
-
-  // ── 计算拖拽目标位置 ──────────────────────────────────
-  const computeTargetIdx = useCallback((fromIdx: number, translationY: number): number => {
-    const layouts = nodeLayouts.current;
-    if (!layouts[fromIdx]) return fromIdx;
-    const fromCenter = layouts[fromIdx].y + layouts[fromIdx].height / 2 + translationY;
-    let targetIdx = fromIdx;
-    let minDist = Infinity;
-    layouts.forEach((layout, i) => {
-      if (!layout) return;
-      const dist = Math.abs(fromCenter - (layout.y + layout.height / 2));
-      if (dist < minDist) { minDist = dist; targetIdx = i; }
-    });
-    return targetIdx;
-  }, []);
-
-  // ── 拖拽回调（传入子组件）─────────────────────────────
-  const handleDragStart = useCallback((idx: number) => {
-    setDraggingIdx(idx);
-    setDragTranslateY(0);
-    setScrollEnabled(false);
-  }, []);
-
-  const handleDragUpdate = useCallback((translationY: number) => {
-    setDragTranslateY(translationY);
-  }, []);
-
-  const handleDragEnd = useCallback(async (fromIdx: number, translationY: number) => {
-    const toIdx = computeTargetIdx(fromIdx, translationY);
-    setDraggingIdx(null);
-    setDragTranslateY(0);
-    setScrollEnabled(true);
-    if (fromIdx === toIdx) return;
-
-    const reordered = [...localNodes];
-    const [moved] = reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, moved);
-    setLocalNodes(reordered); // 乐观更新
-
-    try {
-      // 仅更新节点 position，与进度条拖动完全隔离
-      await reorderNodes(reordered.map((n, i) => ({ id: n.id, position: i })));
-    } catch (e) {
-      console.error('重排序保存失败，恢复原顺序', e);
-      await loadTask();
-    }
-  }, [localNodes, computeTargetIdx, loadTask]);
 
   const deleteConfirmStyle = useAnimatedStyle(() => ({
     height: deleteConfirmAnim.value * 64,
@@ -339,6 +151,7 @@ export default function TaskDetailScreen() {
   }
 
   const accentColor = editColor;
+  const step = task.nodes.length > 1 ? 1 / (task.nodes.length - 1) : 1;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -365,7 +178,6 @@ export default function TaskDetailScreen() {
 
         <ScrollView
           className="flex-1"
-          scrollEnabled={scrollEnabled}
           contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 24, paddingBottom: 48 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -408,9 +220,9 @@ export default function TaskDetailScreen() {
             <Text className="text-sm font-glow-sans-sc text-destructive mt-1 mb-2">{errorMsg}</Text>
           )}
 
-          {/* ── 节点管理 ── */}
+          {/* ── 节点列表 ── */}
           <View className="mt-6">
-            <View className="flex-row items-center justify-between mb-1">
+            <View className="flex-row items-center justify-between mb-3">
               <SectionHeader label="任务节点" />
               <Pressable
                 onPress={() => { setShowAddNode(true); setTimeout(() => newNodeInputRef.current?.focus(), 80); }}
@@ -420,37 +232,72 @@ export default function TaskDetailScreen() {
                 <Text className="text-xs font-glow-sans-sc" style={{ color: accentColor }}>添加</Text>
               </Pressable>
             </View>
-            <Text className="text-xs font-glow-sans-sc text-muted-foreground mb-3">
-              长按 ⠿ 可拖拽调整顺序
-            </Text>
 
-            {localNodes.map((node, idx) => (
-              <DraggableNodeRow
-                key={node.id}
-                node={node}
-                idx={idx}
-                totalNodes={localNodes.length}
-                progressPosition={task.progress_position}
-                isEditing={editingNodeId === node.id}
-                accentColor={accentColor}
-                onPressEdit={() => {
-                  setEditingNodeId(node.id);
-                  setEditingNodeText(node.title);
-                  setTimeout(() => nodeInputRef.current?.focus(), 50);
-                }}
-                onDelete={() => handleDeleteNode(node.id)}
-                onLayout={handleNodeLayout}
-                editingNodeText={editingNodeText}
-                onChangeEditText={setEditingNodeText}
-                onSaveNodeTitle={handleSaveNodeTitle}
-                nodeInputRef={nodeInputRef}
-                onDragStart={handleDragStart}
-                onDragUpdate={handleDragUpdate}
-                onDragEnd={handleDragEnd}
-                isDragging={draggingIdx === idx}
-                dragTranslateY={draggingIdx === idx ? dragTranslateY : 0}
-              />
-            ))}
+            {task.nodes.map((node, idx) => {
+              const nodePos = idx * step;
+              const isCompleted = nodePos <= task.progress_position + 0.001;
+              const isEditing = editingNodeId === node.id;
+
+              return (
+                <View
+                  key={node.id}
+                  className="flex-row items-center mb-2 py-3 px-4 rounded-2xl"
+                  style={{
+                    backgroundColor: isCompleted ? `${accentColor}0D` : '#F8F9FB',
+                    borderCurve: 'continuous',
+                  }}
+                >
+                  {/* 状态指示圆 */}
+                  <View
+                    className="w-7 h-7 rounded-full items-center justify-center mr-3 flex-shrink-0"
+                    style={{ backgroundColor: isCompleted ? accentColor : '#E5E7EB' }}
+                  >
+                    {isCompleted ? (
+                      <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
+                    ) : (
+                      <Text className="text-xs font-glow-sans-sc text-muted-foreground">{idx + 1}</Text>
+                    )}
+                  </View>
+
+                  {/* 节点标题 */}
+                  {isEditing ? (
+                    <TextInput
+                      ref={nodeInputRef}
+                      value={editingNodeText}
+                      onChangeText={setEditingNodeText}
+                      onBlur={handleSaveNodeTitle}
+                      onSubmitEditing={handleSaveNodeTitle}
+                      returnKeyType="done"
+                      className="flex-1 text-sm font-glow-sans-sc text-foreground"
+                      autoFocus
+                    />
+                  ) : (
+                    <Pressable
+                      className="flex-1"
+                      onPress={() => {
+                        setEditingNodeId(node.id);
+                        setEditingNodeText(node.title);
+                        setTimeout(() => nodeInputRef.current?.focus(), 50);
+                      }}
+                    >
+                      <Text
+                        className="text-sm font-glow-sans-sc"
+                        style={{ color: isCompleted ? accentColor : '#374151' }}
+                      >
+                        {node.title}
+                      </Text>
+                    </Pressable>
+                  )}
+
+                  {/* 删除 */}
+                  {!isEditing && (
+                    <Pressable onPress={() => handleDeleteNode(node.id)} className="ml-2 p-1">
+                      <X size={15} color="#D1D5DB" />
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })}
 
             {showAddNode && (
               <View className="flex-row items-center mt-1 mb-2 py-3 px-4 rounded-2xl bg-secondary">
