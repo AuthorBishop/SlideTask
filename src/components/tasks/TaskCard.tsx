@@ -10,7 +10,6 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -23,68 +22,62 @@ interface TaskCardProps {
   onOpenDetail: (taskId: string) => void;
 }
 
-// 根据进度(0~1)和节点列表，计算当前节点和下一节点
-function getNodeContext(progress: number, nodeCount: number) {
-  if (nodeCount === 0) return { currentIdx: -1, nextIdx: -1 };
-  if (nodeCount === 1) return { currentIdx: 0, nextIdx: -1 };
-
-  // 节点均匀分布在 0..1
-  const step = 1 / (nodeCount - 1);
-  let currentIdx = -1;
-  let nextIdx = -1;
-
-  for (let i = 0; i < nodeCount; i++) {
-    const nodePos = i * step;
-    if (nodePos <= progress + 0.001) {
-      currentIdx = i;
-    }
-  }
-  nextIdx = currentIdx < nodeCount - 1 ? currentIdx + 1 : -1;
-  return { currentIdx, nextIdx };
-}
+// 每个节点标签的宽度上限（px）
+const LABEL_MAX_WIDTH = 72;
+// 进度条轨道距容器顶部的偏移（用于节点标签定位）
+const TRACK_TOP = 28; // 上方标签区高度
+const TRACK_HEIGHT = 6;
+const NODE_DOT_R = 6; // 节点圆半径
 
 export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
   const { nodes, color } = task;
   const nodeCount = nodes.length;
+  const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
 
   const [progress, setProgress] = useState(task.progress_position);
   const [barWidth, setBarWidth] = useState(0);
   const [expanded, setExpanded] = useState(false);
 
-  // 编辑节点文字
+  // 节点内联编辑（直接在进度条标签上编辑）
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  // 本地节点标题缓存，保存成功后更新，避免每次编辑都触发全局 reload
+  const [localTitles, setLocalTitles] = useState<Record<string, string>>(
+    () => Object.fromEntries(nodes.map((n) => [n.id, n.title]))
+  );
   const editInputRef = useRef<TextInput>(null);
 
   // 动画值
   const expandAnim = useSharedValue(0);
-  const dragProgress = useSharedValue(progress);
+  const dragProgress = useSharedValue(task.progress_position);
 
+  // 当外部 task 数据更新时同步本地状态（但不触发 re-fetch 循环）
   useEffect(() => {
     setProgress(task.progress_position);
     dragProgress.value = task.progress_position;
-  }, [task.progress_position]);
+    setLocalTitles(Object.fromEntries(nodes.map((n) => [n.id, n.title])));
+  }, [task.progress_position, nodes]);
 
   useEffect(() => {
-    expandAnim.value = withTiming(expanded ? 1 : 0, { duration: 260 });
+    expandAnim.value = withTiming(expanded ? 1 : 0, { duration: 240 });
   }, [expanded]);
 
-  const onBarLayout = (e: LayoutChangeEvent) => {
+  const onBarLayout = useCallback((e: LayoutChangeEvent) => {
     setBarWidth(e.nativeEvent.layout.width);
-  };
+  }, []);
 
-  // 保存进度到数据库
+  // ── 进度保存：仅更新本地 state + DB，不触发全列表 re-fetch ──
   const saveProgress = useCallback(
     async (val: number) => {
       setProgress(val);
       try {
         await updateTaskProgress(task.id, val);
-        onUpdate();
+        // 不调用 onUpdate()，避免重新排序整个列表
       } catch (e) {
         console.error('保存进度失败', e);
       }
     },
-    [task.id, onUpdate]
+    [task.id]
   );
 
   // 拖动手势
@@ -107,139 +100,185 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   }));
 
   const expandedContainerStyle = useAnimatedStyle(() => ({
-    height: expandAnim.value * 100,
+    height: expandAnim.value * 48,
     opacity: expandAnim.value,
     overflow: 'hidden',
   }));
 
-  // 拖动把手位置样式（必须在顶层调用，不能放在条件渲染内）
   const handlePositionStyle = useAnimatedStyle(() => ({
     left: `${dragProgress.value * 100}%`,
   }));
 
-  const { currentIdx, nextIdx } = getNodeContext(progress, nodeCount);
-  const currentNodeTitle = currentIdx >= 0 ? nodes[currentIdx].title : '';
-  const nextNodeTitle = nextIdx >= 0 ? nodes[nextIdx].title : '';
-
-  const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
-
-  // 保存节点标题
-  const saveNodeTitle = async () => {
-    if (!editingNodeId) return;
-    const node = nodes.find((n) => n.id === editingNodeId);
-    if (!node || editingText.trim() === '') {
+  // ── 节点标题保存：仅更新本地缓存 + DB，不触发全列表 re-fetch ──
+  const saveNodeTitle = useCallback(async () => {
+    if (!editingNodeId || !editingText.trim()) {
       setEditingNodeId(null);
       return;
     }
-    try {
-      await updateNodeTitle(editingNodeId, editingText);
-      onUpdate();
-    } catch (e) {
-      console.error('保存节点失败', e);
-    }
+    const trimmed = editingText.trim();
+    // 乐观更新本地缓存
+    setLocalTitles((prev) => ({ ...prev, [editingNodeId]: trimmed }));
     setEditingNodeId(null);
-  };
+    try {
+      await updateNodeTitle(editingNodeId, trimmed);
+      // 不调用 onUpdate()，节点标题改动不影响列表顺序
+    } catch (e) {
+      console.error('保存节点标题失败', e);
+      // 回滚本地缓存
+      setLocalTitles((prev) => ({
+        ...prev,
+        [editingNodeId]: nodes.find((n) => n.id === editingNodeId)?.title ?? prev[editingNodeId],
+      }));
+    }
+  }, [editingNodeId, editingText, nodes]);
 
-  const startEditNode = (nodeId: string, currentTitle: string) => {
+  const startEditNode = useCallback((nodeId: string, currentTitle: string) => {
     setEditingNodeId(nodeId);
     setEditingText(currentTitle);
     setTimeout(() => editInputRef.current?.focus(), 50);
-  };
+  }, []);
+
+  // 进度条容器总高度 = 上方标签区 + 轨道 + 下方标签区
+  const LABEL_LINE_HEIGHT = 16; // 单行标签高度
+  const LABEL_ROWS = 2;         // 允许最多两行
+  const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4; // 上方区域高度
+  const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4; // 下方区域高度
+  const CONTAINER_HEIGHT = ABOVE_HEIGHT + TRACK_HEIGHT + 12 + BELOW_HEIGHT; // 12 = 节点直径差补偿
 
   return (
     <Pressable
       onPress={() => {
-        if (editingNodeId) return;
+        if (editingNodeId) {
+          // 点击卡片空白区域时先提交编辑
+          saveNodeTitle();
+          return;
+        }
         setExpanded((v) => !v);
       }}
       style={{ borderCurve: 'continuous' }}
       className="bg-card rounded-2xl px-5 pt-5 pb-4 mb-3"
     >
-      {/* 任务标题行 */}
-      <View className="flex-row items-center justify-between mb-3">
+      {/* ── 任务标题行 ── */}
+      <View className="flex-row items-center justify-between mb-4">
         <Text
           className="text-base font-glow-sans-sc text-foreground flex-1 mr-2"
           numberOfLines={1}
         >
           {task.title}
         </Text>
-        {/* 颜色指示点 */}
-        <View
-          className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: color }}
-        />
+        <View className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
       </View>
 
-      {/* 节点文字提示：上下错开布局，确保文字完整显示不截断 */}
-      {nodeCount > 0 && (
-        <View style={{ minHeight: nextIdx >= 0 ? 34 : 18, marginBottom: 6, position: 'relative' }}>
-          {/* 当前节点：左侧，上方 */}
-          {currentIdx >= 0 && (
-            <Pressable
-              onPress={() => expanded && startEditNode(nodes[currentIdx].id, nodes[currentIdx].title)}
-              style={{ position: 'absolute', top: 0, left: 2, maxWidth: '70%' }}
-            >
-              <Text className="text-xs font-glow-sans-sc" style={{ color: color }} numberOfLines={2}>
-                {currentNodeTitle}
-              </Text>
-            </Pressable>
-          )}
-          {/* 下一节点：右侧，下方错开 16px，避免与左侧文字重叠 */}
-          {nextIdx >= 0 && (
-            <Pressable
-              onPress={() => expanded && startEditNode(nodes[nextIdx].id, nodes[nextIdx].title)}
-              style={{ position: 'absolute', top: 16, right: 2, maxWidth: '70%' }}
-            >
-              <Text
-                className="text-xs font-glow-sans-sc text-muted-foreground"
-                style={{ textAlign: 'right' }}
-                numberOfLines={2}
-              >
-                {nextNodeTitle}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-
-      {/* 进度条区域 */}
+      {/* ── 进度条 + 节点标签一体容器 ── */}
       <View
-        className="relative"
+        style={{ height: CONTAINER_HEIGHT, position: 'relative' }}
         onLayout={onBarLayout}
       >
-        {/* 背景轨道 */}
+        {/* 轨道背景 */}
         <View
-          className="w-full rounded-full overflow-hidden"
-          style={{ height: 6, backgroundColor: '#F1F1F4' }}
+          style={{
+            position: 'absolute',
+            top: ABOVE_HEIGHT + (NODE_DOT_R * 2 - TRACK_HEIGHT) / 2,
+            left: 0,
+            right: 0,
+            height: TRACK_HEIGHT,
+            backgroundColor: '#F1F1F4',
+            borderRadius: 999,
+            overflow: 'hidden',
+          }}
         >
-          <Animated.View
-            style={[fillStyle, { height: 6, borderRadius: 999, backgroundColor: color }]}
-          />
+          <Animated.View style={[fillStyle, { height: TRACK_HEIGHT, backgroundColor: color }]} />
         </View>
 
-        {/* 节点标记点 */}
-        {nodeCount > 1 &&
-          nodes.map((node, i) => {
-            const nodePos = i * step;
-            const isCompleted = nodePos <= progress + 0.001;
-            return (
+        {/* 节点圆点 + 标签 */}
+        {barWidth > 0 && nodes.map((node, i) => {
+          const nodePos = i * step;
+          const leftPx = nodePos * barWidth;
+          const isCompleted = nodePos <= progress + 0.001;
+          const isAbove = i % 2 === 0; // 偶数节点标签在上，奇数在下
+          const isFirst = i === 0;
+          const isLast = i === nodeCount - 1;
+          const dotTop = ABOVE_HEIGHT; // 圆点顶边
+
+          // 标签水平对齐：首节点左对齐，末节点右对齐，其余居中
+          let labelLeft = leftPx - LABEL_MAX_WIDTH / 2;
+          if (isFirst) labelLeft = Math.max(0, leftPx - 4);
+          if (isLast) labelLeft = Math.min(barWidth - LABEL_MAX_WIDTH, leftPx - LABEL_MAX_WIDTH + 4);
+
+          const isEditing = editingNodeId === node.id;
+          const displayTitle = localTitles[node.id] ?? node.title;
+
+          return (
+            <View key={node.id}>
+              {/* 节点圆点 */}
               <View
-                key={node.id}
                 style={{
                   position: 'absolute',
-                  top: -3,
-                  left: `${nodePos * 100}%`,
-                  transform: [{ translateX: -5 }],
-                  width: 12,
-                  height: 12,
-                  borderRadius: 6,
+                  top: dotTop,
+                  left: leftPx - NODE_DOT_R,
+                  width: NODE_DOT_R * 2,
+                  height: NODE_DOT_R * 2,
+                  borderRadius: NODE_DOT_R,
                   borderWidth: 2,
                   borderColor: isCompleted ? color : '#E5E7EB',
                   backgroundColor: isCompleted ? color : '#FFFFFF',
                 }}
               />
-            );
-          })}
+
+              {/* 节点标签 */}
+              <View
+                style={{
+                  position: 'absolute',
+                  left: labelLeft,
+                  width: LABEL_MAX_WIDTH,
+                  ...(isAbove
+                    ? { top: 0, justifyContent: 'flex-end', height: ABOVE_HEIGHT - 4 }
+                    : { top: ABOVE_HEIGHT + NODE_DOT_R * 2 + 4, height: BELOW_HEIGHT - 4 }),
+                }}
+              >
+                {isEditing ? (
+                  <TextInput
+                    ref={editInputRef}
+                    value={editingText}
+                    onChangeText={setEditingText}
+                    onBlur={saveNodeTitle}
+                    onSubmitEditing={saveNodeTitle}
+                    returnKeyType="done"
+                    style={{
+                      fontSize: 11,
+                      color: '#374151',
+                      borderBottomWidth: 1,
+                      borderBottomColor: color,
+                      paddingBottom: 1,
+                      fontFamily: 'GlowSansSC-Normal-Regular',
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      startEditNode(node.id, displayTitle);
+                    }}
+                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: isCompleted ? color : '#9CA3AF',
+                        fontFamily: 'GlowSansSC-Normal-Regular',
+                        textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
+                      }}
+                      numberOfLines={2}
+                    >
+                      {displayTitle}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          );
+        })}
 
         {/* 拖动把手（展开时显示） */}
         {expanded && barWidth > 0 && (
@@ -248,7 +287,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
               style={[
                 {
                   position: 'absolute',
-                  top: -8,
+                  top: ABOVE_HEIGHT - 5,
                   width: 22,
                   height: 22,
                   borderRadius: 11,
@@ -269,27 +308,12 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
         )}
       </View>
 
-      {/* 展开后的操作区 */}
+      {/* ── 展开后操作区 ── */}
       <Animated.View style={expandedContainerStyle}>
-        <View className="mt-4 flex-row items-center justify-between">
-          {/* 节点编辑输入框 */}
-          {editingNodeId ? (
-            <TextInput
-              ref={editInputRef}
-              value={editingText}
-              onChangeText={setEditingText}
-              onBlur={saveNodeTitle}
-              onSubmitEditing={saveNodeTitle}
-              returnKeyType="done"
-              className="flex-1 text-sm font-glow-sans-sc text-foreground border-b border-border py-1 mr-3"
-              placeholder="编辑节点名称"
-              placeholderTextColor="#9CA3AF"
-            />
-          ) : (
-            <Text className="text-xs font-glow-sans-sc text-muted-foreground flex-1">
-              拖动进度 · 点击节点名称编辑
-            </Text>
-          )}
+        <View className="mt-3 flex-row items-center justify-between">
+          <Text className="text-xs font-glow-sans-sc text-muted-foreground flex-1">
+            拖动调整进度 · 点击标签直接编辑
+          </Text>
           <Pressable
             onPress={() => {
               setExpanded(false);
