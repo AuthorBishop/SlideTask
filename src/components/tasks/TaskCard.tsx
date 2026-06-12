@@ -190,20 +190,79 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           <Animated.View style={[fillStyle, { height: TRACK_HEIGHT, backgroundColor: color }]} />
         </View>
 
-        {/* 节点圆点 + 标签 */}
-        {barWidth > 0 && nodes.map((node, i) => {
+        {/* ── 单节点特殊处理：仅显示标签，不画圆点 ── */}
+        {barWidth > 0 && nodeCount === 1 && (() => {
+          const node = nodes[0];
+          const isEditing = editingNodeId === node.id;
+          const displayTitle = localTitles[node.id] ?? node.title;
+          return (
+            <View
+              key={node.id}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                height: ABOVE_HEIGHT - 4,
+                justifyContent: 'flex-end',
+                maxWidth: barWidth,
+              }}
+            >
+              {isEditing ? (
+                <TextInput
+                  ref={editInputRef}
+                  value={editingText}
+                  onChangeText={setEditingText}
+                  onBlur={saveNodeTitle}
+                  onSubmitEditing={saveNodeTitle}
+                  returnKeyType="done"
+                  style={{
+                    fontSize: 11,
+                    color: '#374151',
+                    borderBottomWidth: 1,
+                    borderBottomColor: color,
+                    paddingBottom: 1,
+                    fontFamily: 'GlowSansSC-Normal-Regular',
+                    minWidth: 60,
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation?.(); startEditNode(node.id, displayTitle); }}
+                  hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color,
+                      fontFamily: 'GlowSansSC-Normal-Regular',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {displayTitle}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          );
+        })()}
+
+        {/* ── 多节点：圆点 + 交错标签 ── */}
+        {barWidth > 0 && nodeCount > 1 && nodes.map((node, i) => {
           const nodePos = i * step;
           const leftPx = nodePos * barWidth;
           const isCompleted = nodePos <= progress + 0.001;
           const isAbove = i % 2 === 0; // 偶数节点标签在上，奇数在下
           const isFirst = i === 0;
           const isLast = i === nodeCount - 1;
-          const dotTop = ABOVE_HEIGHT; // 圆点顶边
+          const dotLeft = Math.max(0, leftPx - NODE_DOT_R); // 防止负值溢出
+          const dotTop = ABOVE_HEIGHT;
 
-          // 标签水平对齐：首节点左对齐，末节点右对齐，其余居中
+          // 标签水平位置：首节点左对齐，末节点右对齐，其余居中
           let labelLeft = leftPx - LABEL_MAX_WIDTH / 2;
-          if (isFirst) labelLeft = Math.max(0, leftPx - 4);
-          if (isLast) labelLeft = Math.min(barWidth - LABEL_MAX_WIDTH, leftPx - LABEL_MAX_WIDTH + 4);
+          if (isFirst) labelLeft = 0;
+          if (isLast) labelLeft = Math.max(0, barWidth - LABEL_MAX_WIDTH);
+          labelLeft = Math.max(0, Math.min(barWidth - LABEL_MAX_WIDTH, labelLeft));
 
           const isEditing = editingNodeId === node.id;
           const displayTitle = localTitles[node.id] ?? node.title;
@@ -215,7 +274,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                 style={{
                   position: 'absolute',
                   top: dotTop,
-                  left: leftPx - NODE_DOT_R,
+                  left: dotLeft,
                   width: NODE_DOT_R * 2,
                   height: NODE_DOT_R * 2,
                   borderRadius: NODE_DOT_R,
@@ -256,10 +315,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   />
                 ) : (
                   <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      startEditNode(node.id, displayTitle);
-                    }}
+                    onPress={(e) => { e.stopPropagation?.(); startEditNode(node.id, displayTitle); }}
                     hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                   >
                     <Text
