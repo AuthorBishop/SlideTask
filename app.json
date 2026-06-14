@@ -35,7 +35,7 @@
       "root": "src"
     },
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": false
     }
   }
 }
