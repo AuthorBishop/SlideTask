@@ -51,6 +51,6 @@ package.json.*
 .sync
 history/*.json
 .claude/
-/.skills
+# /.skills
 /tasks
 package.json.[0-9]*
