@@ -334,11 +334,6 @@ export default function TaskDetailScreen() {
                       }}
                       style={{ cursor: 'pointer' }}
                     >
-                        setEditingNodeId(node.id);
-                        setEditingNodeText(node.title);
-                        setTimeout(() => nodeInputRef.current?.focus(), 50);
-                      }}
-                    >
                       <Text
                         className="text-sm font-glow-sans-sc"
                         style={{ color: isCompleted ? accentColor : '#374151' }}
