@@ -22,9 +22,11 @@ interface TaskCardProps {
 }
 
 const LABEL_MAX_WIDTH = 72;
-const TRACK_HEIGHT = 6;
+const TRACK_HEIGHT = 8;
 const NODE_DOT_R = 5;
-const LABEL_LINE_HEIGHT = 14;
+const HANDLE_SIZE = 18;
+const LABEL_LINE_HEIGHT = 15;
+const LABEL_FONT_SIZE = 11;
 
 export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
   const { nodes, color, note } = task;
@@ -115,9 +117,9 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   const bgColor = hexToRgba(color, 0.08);
 
   const LABEL_ROWS = 1;
-  const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 2;
-  const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 2;
-  const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 6 + BELOW_HEIGHT;
+  const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
+  const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
+  const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
 
   return (
     <View
@@ -160,22 +162,22 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
         style={{ height: CONTAINER_HEIGHT, position: 'relative' }}
         onLayout={onBarLayout}
       >
-        {/* 轨道背景 + 拖动手势（两端对齐） */}
+        {/* 轨道背景 + 拖动手势 */}
         <GestureDetector gesture={panGesture}>
           <View
             style={{
               position: 'absolute',
-              top: ABOVE_HEIGHT + (NODE_DOT_R * 2 - TRACK_HEIGHT) / 2,
+              top: ABOVE_HEIGHT + NODE_DOT_R - TRACK_HEIGHT / 2,
               left: 0,
               right: 0,
-              height: TRACK_HEIGHT + 12,
+              height: TRACK_HEIGHT + 16,
               justifyContent: 'center',
             }}
           >
             <View
               style={{
                 height: TRACK_HEIGHT,
-                backgroundColor: '#F1F1F4',
+                backgroundColor: '#E8E8ED',
                 borderRadius: 999,
                 overflow: 'hidden',
                 flex: 1,
@@ -212,7 +214,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   onSubmitEditing={saveNodeTitle}
                   returnKeyType="done"
                   style={{
-                    fontSize: 10,
+                    fontSize: LABEL_FONT_SIZE,
                     color: '#374151',
                     borderBottomWidth: 1,
                     borderBottomColor: color,
@@ -228,7 +230,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text
-                    style={{ fontSize: 10, color, fontFamily: 'System' }}
+                    style={{ fontSize: LABEL_FONT_SIZE, color, fontFamily: 'System', fontWeight: '500' }}
                     numberOfLines={1}
                   >
                     {displayTitle}
@@ -299,7 +301,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                     onSubmitEditing={saveNodeTitle}
                     returnKeyType="done"
                     style={{
-                      fontSize: 10,
+                      fontSize: LABEL_FONT_SIZE,
                       color: '#374151',
                       borderBottomWidth: 1,
                       borderBottomColor: color,
@@ -315,9 +317,10 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   >
                     <Text
                       style={{
-                        fontSize: 10,
+                        fontSize: LABEL_FONT_SIZE,
                         color: isCompleted ? color : '#9CA3AF',
                         fontFamily: 'System',
+                        fontWeight: isCompleted ? '500' : '400',
                         textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
                       }}
                       numberOfLines={1}
@@ -331,7 +334,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           );
         })}
 
-        {/* ── 可拖动的进度圆点（始终可见）── */}
+        {/* ── 可拖动的进度圆点把手（始终可见）── */}
         {barWidth > 0 && (
           <>
             {/* 拖动手势覆盖层 */}
@@ -339,54 +342,47 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
               <View
                 style={{
                   position: 'absolute',
-                  top: ABOVE_HEIGHT - 5,
+                  top: ABOVE_HEIGHT - HANDLE_SIZE / 2,
                   left: 0,
                   right: 0,
-                  height: NODE_DOT_R * 2 + 12,
+                  height: HANDLE_SIZE + 16,
                 }}
               />
             </GestureDetector>
-            {/* 圆点把手 */}
+            {/* 把手外圈（色环 + 阴影） */}
             <Animated.View
               pointerEvents="none"
               style={[
                 {
                   position: 'absolute',
-                  top: ABOVE_HEIGHT - 2,
-                  width: NODE_DOT_R * 2 + 4,
-                  height: NODE_DOT_R * 2 + 4,
-                  borderRadius: (NODE_DOT_R * 2 + 4) / 2,
+                  top: ABOVE_HEIGHT + NODE_DOT_R - HANDLE_SIZE / 2,
+                  width: HANDLE_SIZE,
+                  height: HANDLE_SIZE,
+                  borderRadius: HANDLE_SIZE / 2,
                   backgroundColor: '#FFFFFF',
-                  borderWidth: 2.5,
+                  borderWidth: 3,
                   borderColor: color,
-                  shadowColor: color,
-                  shadowOffset: { width: 0, height: 1.5 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3,
-                  elevation: 3,
-                  transform: [{ translateX: -(NODE_DOT_R * 2 + 4) / 2 }],
-                },
-                handlePositionStyle,
-              ]}
-            />
-            {/* 双竖线 ⋮⋮ 叠加在圆点上 */}
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                {
-                  position: 'absolute',
-                  top: ABOVE_HEIGHT + 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 4,
+                  elevation: 4,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transform: [{ translateX: -6 }],
+                  transform: [{ translateX: -HANDLE_SIZE / 2 }],
                 },
                 handlePositionStyle,
               ]}
             >
-              <View style={{ flexDirection: 'row', gap: 2.5 }}>
-                <View style={{ width: 2, height: 9, borderRadius: 1, backgroundColor: color }} />
-                <View style={{ width: 2, height: 9, borderRadius: 1, backgroundColor: color }} />
-              </View>
+              {/* 把手内芯（实心色圆） */}
+              <View
+                style={{
+                  width: HANDLE_SIZE - 8,
+                  height: HANDLE_SIZE - 8,
+                  borderRadius: (HANDLE_SIZE - 8) / 2,
+                  backgroundColor: color,
+                }}
+              />
             </Animated.View>
           </>
         )}

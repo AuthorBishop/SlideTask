@@ -44,6 +44,8 @@ export default function TaskDetailScreen() {
   const [task, setTask] = useState<TaskWithNodes | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [addingNode, setAddingNode] = useState(false);
 
   const [editTitle, setEditTitle] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -54,6 +56,7 @@ export default function TaskDetailScreen() {
   const [showAddNode, setShowAddNode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const newNodeInputRef = useRef<TextInput>(null);
   const nodeInputRef = useRef<TextInput>(null);
@@ -80,10 +83,12 @@ export default function TaskDetailScreen() {
 
   const handleSaveBasic = async () => {
     if (!task || !editTitle.trim()) { setErrorMsg('任务名称不能为空'); return; }
-    setSaving(true); setErrorMsg('');
+    setSaving(true); setErrorMsg(''); setSuccessMsg('');
     try {
       await updateTask(task.id, { title: editTitle.trim(), note: editNote.trim(), color: editColor });
       await loadTask();
+      setSuccessMsg('已保存');
+      setTimeout(() => setSuccessMsg(''), 1500);
     } catch (e) { setErrorMsg('保存失败，请重试'); console.error(e); }
     finally { setSaving(false); }
   };
@@ -97,16 +102,23 @@ export default function TaskDetailScreen() {
 
   const handleAddNode = async () => {
     if (!task || !newNodeText.trim()) return;
+    setAddingNode(true); setErrorMsg(''); setSuccessMsg('');
     try {
       await addNode(task.id, newNodeText.trim(), task.nodes.length);
-      setNewNodeText(''); setShowAddNode(false); await loadTask();
-    } catch (e) { console.error('添加节点失败', e); }
+      setNewNodeText(''); setShowAddNode(false);
+      await loadTask();
+      setSuccessMsg('节点已添加');
+      setTimeout(() => setSuccessMsg(''), 1500);
+    } catch (e) {
+      setErrorMsg('添加节点失败，请重试');
+      console.error('添加节点失败', e);
+    } finally { setAddingNode(false); }
   };
 
   const handleDeleteNode = async (nodeId: string) => {
     if (!task) return;
     if (task.nodes.length <= 1) { setErrorMsg('至少需要保留一个节点'); return; }
-    setErrorMsg('');
+    setErrorMsg(''); setSuccessMsg('');
     try {
       await deleteNode(nodeId);
       await updateTaskProgress(task.id, Math.min(task.progress_position, 1));
@@ -116,8 +128,16 @@ export default function TaskDetailScreen() {
 
   const handleDeleteTask = async () => {
     if (!task) return;
-    try { await deleteTask(task.id); router.back(); }
-    catch (e) { console.error('删除任务失败', e); }
+    setDeleting(true); setErrorMsg('');
+    try {
+      await deleteTask(task.id);
+      router.back();
+    } catch (e) {
+      setErrorMsg('删除失败，请重试');
+      console.error('删除任务失败', e);
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const deleteConfirmStyle = useAnimatedStyle(() => ({
@@ -219,6 +239,9 @@ export default function TaskDetailScreen() {
           {errorMsg !== '' && (
             <Text className="text-sm font-glow-sans-sc text-destructive mt-1 mb-2">{errorMsg}</Text>
           )}
+          {successMsg !== '' && (
+            <Text className="text-sm font-glow-sans-sc mt-1 mb-2" style={{ color: accentColor }}>{successMsg}</Text>
+          )}
 
           {/* ── 节点列表 ── */}
           <View className="mt-6">
@@ -314,8 +337,12 @@ export default function TaskDetailScreen() {
                   returnKeyType="done" onSubmitEditing={handleAddNode}
                   onBlur={() => { if (!newNodeText.trim()) setShowAddNode(false); }}
                 />
-                <Pressable onPress={handleAddNode} className="ml-2 p-1">
-                  <Check size={16} color={accentColor} />
+                <Pressable onPress={handleAddNode} disabled={addingNode} className="ml-2 p-1">
+                  {addingNode ? (
+                    <ActivityIndicator size="small" color={accentColor} />
+                  ) : (
+                    <Check size={16} color={accentColor} />
+                  )}
                 </Pressable>
               </View>
             )}
@@ -343,10 +370,14 @@ export default function TaskDetailScreen() {
                 </Pressable>
                 <Pressable
                   onPress={handleDeleteTask}
-                  className="flex-1 py-3 rounded-2xl items-center"
-                  style={{ backgroundColor: '#EF4444', borderCurve: 'continuous' }}
+                  disabled={deleting}
+                  className="flex-1 py-3 rounded-2xl items-center flex-row justify-center gap-2"
+                  style={{ backgroundColor: '#EF4444', borderCurve: 'continuous', opacity: deleting ? 0.6 : 1 }}
                 >
-                  <Text className="text-sm font-glow-sans-sc text-white font-medium">确认删除</Text>
+                  {deleting && <ActivityIndicator size="small" color="#FFFFFF" />}
+                  <Text className="text-sm font-glow-sans-sc text-white font-medium">
+                    {deleting ? '删除中…' : '确认删除'}
+                  </Text>
                 </Pressable>
               </View>
             </Animated.View>

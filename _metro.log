@@ -1,0 +1,49 @@
+env: load .env
+env: export EXPO_PUBLIC_APP_ID EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_URL
+Starting project at F:\WorkBuddyProject\todolist
+Using src/app as the root directory for Expo Router.
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:3001
+Logs for your project will appear below.
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 32.7% ( 8/14)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 44.4% (189/414)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 44.4% (519/780)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 57.0% ( 775/1259)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 70.4% (1217/1451)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.9% (1569/1664)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 23595ms node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js (1805 modules)
+Web Bundled 23515ms node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js (1 module)
+Web Bundled 23537ms node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js (1 module)
+Web Bundled 23543ms node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js (1 module)
+Web Bundled 23583ms node_modules\.pnpm\expo-router@55.0.5_@expo+log-box@55.0.12_@expo+metro-runtime@55.0.11_@types+react@19.2.15_exp_x5qejcjfdpuvvk7ghvv4mjzkpq\node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+ LOG  [web] Logs will appear in the browser console
+Web Bundled 914ms node_modules\.pnpm\expo-sqlite@55.0.16_expo@55.0.6_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.15_react@19.2.0__react@19.2.0\node_modules\expo-sqlite\web\worker.ts (16 modules)
+Web Bundled 620ms node_modules\.pnpm\expo-sqlite@55.0.16_expo@55.0.6_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.15_react@19.2.0__react@19.2.0\node_modules\expo-sqlite\web\worker.ts (1 module)
