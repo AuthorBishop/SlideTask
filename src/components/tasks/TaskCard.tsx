@@ -1,5 +1,6 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   LayoutChangeEvent,
   Pressable,
   Text,
@@ -15,6 +16,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { TaskWithNodes } from '@/types/types';
 import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
 import { CheckCircle } from 'lucide-react-native';
+import { useFontSize } from '@/ctx/fontSize';
 
 interface TaskCardProps {
   task: TaskWithNodes;
@@ -24,28 +26,24 @@ interface TaskCardProps {
 
 const LABEL_MAX_WIDTH = 80;
 const TRACK_HEIGHT = 8;
-const NODE_DOT_R = 6;       // 圆点半径稍大一点，更易看清
+const NODE_DOT_R = 6;
 const HANDLE_SIZE = 18;
-const LABEL_LINE_HEIGHT = 18; // 从 15 增大，匹配更大字体
-const LABEL_FONT_SIZE = 13;   // 从 11 增大
 const LABEL_ROWS = 1;
-const LABEL_MARGIN = 8;       // 标签区与轨道的间距
-const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
-const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
+const LABEL_MARGIN = 8;
 
-// 关键基准线：标签区下方 → 轨道中心线
-// 圆心必须精确落在轨道中心线上
-// 轨道 centerY = ABOVE_HEIGHT + NODE_DOT_R
-// 轨道 top = centerY - TRACK_HEIGHT/2
-const TRACK_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;  // 轨道垂直中心 = 圆心 Y
-const DOT_TOP = TRACK_CENTER_Y - NODE_DOT_R;        // 圆心 top = centerY - R
-const TRACK_TOP = TRACK_CENTER_Y - TRACK_HEIGHT / 2;
-const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
+
+
+
 
 export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
   const { nodes, color, note } = task;
   const nodeCount = nodes.length;
   const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
+
+  const { fontSize: LABEL_FONT_SIZE } = useFontSize();
+  const LINE_HEIGHT = LABEL_FONT_SIZE + 5;
+  const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
+  const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
 
   const [progress, setProgress] = useState(task.progress_position);
   const [barWidth, setBarWidth] = useState(0);
@@ -140,7 +138,35 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
     setTimeout(() => editInputRef.current?.focus(), 50);
   }, []);
 
+  // 轨道几何计算（基于动态 LINE_HEIGHT）
+  const TRACK_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;
+  const DOT_TOP = TRACK_CENTER_Y - NODE_DOT_R;
+  const TRACK_TOP = TRACK_CENTER_Y - TRACK_HEIGHT / 2;
+  const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
+
   const bgColor = hexToRgba(color, 0.08);
+
+  // 完成确认弹窗
+  const handleComplete = useCallback(() => {
+    Alert.alert(
+      '确认完成',
+      `确认完成任务「${task.title}」吗？完成后将移至已完成列表。`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确认完成',
+          onPress: async () => {
+            try {
+              await completeTask(task.id);
+              onUpdate();
+            } catch (e) {
+              console.error('完成任务失败', e);
+            }
+          },
+        },
+      ],
+    );
+  }, [task.id, task.title, onUpdate]);
 
   return (
     <View
@@ -163,29 +189,9 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             {note.trim()}
           </Text>
         )}
-        {/* 详情按钮（独立按钮，点击卡片不跳转） */}
+        {/* 完成按钮（右上角打勾） */}
         <Pressable
-          onPress={() => onOpenDetail(task.id)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{ marginLeft: 8 }}
-        >
-          <Text
-            className="text-xs font-sans"
-            style={{ color }}
-          >
-            详情
-          </Text>
-        </Pressable>
-        {/* 完成按钮 */}
-        <Pressable
-          onPress={async () => {
-            try {
-              await completeTask(task.id);
-              onUpdate();
-            } catch (e) {
-              console.error('完成任务失败', e);
-            }
-          }}
+          onPress={handleComplete}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={{ marginLeft: 12 }}
         >
@@ -412,6 +418,23 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             </Animated.View>
           </GestureDetector>
         )}
+      </View>
+
+      {/* ── 右下角详情按钮 ── */}
+      <View className="flex-row justify-end mt-2">
+        <Pressable
+          onPress={() => onOpenDetail(task.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="px-3 py-1 rounded-full"
+          style={{ backgroundColor: `${color}18` }}
+        >
+          <Text
+            className="text-xs font-sans font-medium"
+            style={{ color }}
+          >
+            详情
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

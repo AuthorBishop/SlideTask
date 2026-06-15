@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -45,7 +45,6 @@ export default function TaskDetailScreen() {
 
   const [task, setTask] = useState<TaskWithNodes | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [addingNode, setAddingNode] = useState(false);
 
@@ -61,6 +60,10 @@ export default function TaskDetailScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // 用于追踪是否首次加载完成（避免加载时触发即时保存）
+  const initialLoadDone = useRef(false);
+  const taskRef = useRef<TaskWithNodes | null>(null);
+
   const newNodeInputRef = useRef<TextInput>(null);
   const nodeInputRef = useRef<TextInput>(null);
   const deleteConfirmAnim = useSharedValue(0);
@@ -71,6 +74,7 @@ export default function TaskDetailScreen() {
       const data = await fetchTaskById(id);
       if (data) {
         setTask(data);
+        taskRef.current = data;
         setEditTitle(data.title);
         setEditNote(data.note || '');
         setEditColor(data.color);
@@ -79,6 +83,8 @@ export default function TaskDetailScreen() {
       console.error('加载任务失败', e);
     } finally {
       setLoading(false);
+      // 延迟标记加载完成，避免加载触发的 useEffect 导致即时保存
+      setTimeout(() => { initialLoadDone.current = true; }, 200);
     }
   }, [id]);
 
@@ -87,17 +93,39 @@ export default function TaskDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSaveBasic = async () => {
-    if (!task || !editTitle.trim()) { setErrorMsg('任务名称不能为空'); return; }
-    setSaving(true); setErrorMsg(''); setSuccessMsg('');
+  // 标题/备注/颜色改动时即时保存（加载完成后才生效）
+  const handleSaveBasic = useCallback(async (
+    fields: Partial<{ title: string; note: string; color: string }>
+  ) => {
+    const currentTask = taskRef.current;
+    if (!currentTask || !initialLoadDone.current) return;
+    setErrorMsg('');
     try {
-      await updateTask(task.id, { title: editTitle.trim(), note: editNote.trim(), color: editColor });
-      await loadTask();
-      setSuccessMsg('已保存');
-      setTimeout(() => setSuccessMsg(''), 1500);
-    } catch (e) { setErrorMsg('保存失败，请重试'); console.error(e); }
-    finally { setSaving(false); }
-  };
+      await updateTask(currentTask.id, fields);
+      setTask((prev) => prev ? { ...prev, ...fields } : prev);
+      taskRef.current = { ...currentTask, ...fields };
+    } catch (e) {
+      setErrorMsg('保存失败');
+      console.error(e);
+    }
+  }, []);
+
+  // 标题失焦时保存
+  const handleTitleBlur = useCallback(() => {
+    if (!editTitle.trim()) { setErrorMsg('任务名称不能为空'); return; }
+    handleSaveBasic({ title: editTitle.trim() });
+  }, [editTitle, handleSaveBasic]);
+
+  // 备注失焦时保存
+  const handleNoteBlur = useCallback(() => {
+    handleSaveBasic({ note: editNote.trim() });
+  }, [editNote, handleSaveBasic]);
+
+  // 颜色变更时即时保存
+  const handleColorChange = useCallback((c: string) => {
+    setEditColor(c);
+    handleSaveBasic({ color: c });
+  }, [handleSaveBasic]);
 
   const handleSaveNodeTitle = async () => {
     if (!editingNodeId || !editingNodeText.trim() || savingNodeId === editingNodeId) {
@@ -240,12 +268,11 @@ export default function TaskDetailScreen() {
           <Text className="text-base font-glow-sans-sc text-foreground font-semibold flex-1" numberOfLines={1}>
             {task.title}
           </Text>
-          {saving ? (
-            <ActivityIndicator size="small" color={accentColor} />
-          ) : (
-            <Pressable onPress={handleSaveBasic} className="px-3 py-1.5">
-              <Text className="text-sm font-glow-sans-sc font-medium" style={{ color: accentColor }}>保存</Text>
-            </Pressable>
+          {errorMsg !== '' && (
+            <Text className="text-xs font-glow-sans-sc text-destructive mr-2">{errorMsg}</Text>
+          )}
+          {successMsg !== '' && (
+            <Text className="text-xs font-glow-sans-sc mr-2" style={{ color: accentColor }}>{successMsg}</Text>
           )}
         </View>
 
@@ -260,6 +287,7 @@ export default function TaskDetailScreen() {
           <Text className="text-xs font-glow-sans-sc text-muted-foreground mb-1.5">任务名称</Text>
           <TextInput
             value={editTitle} onChangeText={setEditTitle}
+            onBlur={handleTitleBlur}
             placeholder="任务名称" placeholderTextColor="#9CA3AF"
             className="w-full text-base font-glow-sans-sc text-foreground bg-secondary rounded-xl px-4 py-3 mb-4"
             returnKeyType="next"
@@ -269,7 +297,7 @@ export default function TaskDetailScreen() {
           <View className="flex-row flex-wrap gap-3 mb-4">
             {TASK_COLORS.map((c) => (
               <Pressable
-                key={c} onPress={() => setEditColor(c)}
+                key={c} onPress={() => handleColorChange(c)}
                 style={{
                   width: 28, height: 28, borderRadius: 14, backgroundColor: c,
                   borderWidth: editColor === c ? 2.5 : 0, borderColor: '#374151',
@@ -285,6 +313,7 @@ export default function TaskDetailScreen() {
           <Text className="text-xs font-glow-sans-sc text-muted-foreground mb-1.5">备注</Text>
           <TextInput
             value={editNote} onChangeText={setEditNote}
+            onBlur={handleNoteBlur}
             placeholder="添加备注说明…" placeholderTextColor="#9CA3AF"
             multiline numberOfLines={3}
             className="w-full text-sm font-glow-sans-sc text-foreground bg-secondary rounded-xl px-4 py-3 mb-1"

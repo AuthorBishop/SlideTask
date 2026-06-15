@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   Text,
@@ -34,13 +35,25 @@ export default function CompletedScreen() {
     }, [loadCompleted])
   );
 
-  const handleUncomplete = async (taskId: string) => {
-    try {
-      await uncompleteTask(taskId);
-      await loadCompleted();
-    } catch (e) {
-      console.error('取消完成失败', e);
-    }
+  const handleUncomplete = (taskId: string, taskTitle: string) => {
+    Alert.alert(
+      '确认取消完成',
+      `确认取消完成任务「${taskTitle}」吗？任务将回到主页列表。`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确认取消',
+          onPress: async () => {
+            try {
+              await uncompleteTask(taskId);
+              await loadCompleted();
+            } catch (e) {
+              console.error('取消完成失败', e);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -111,7 +124,7 @@ export default function CompletedScreen() {
 
               {/* 取消完成按钮 */}
               <Pressable
-                onPress={() => handleUncomplete(item.id)}
+                onPress={() => handleUncomplete(item.id, item.title)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 className="ml-3 p-2 rounded-full"
                 style={{ backgroundColor: '#E5E7EB' }}

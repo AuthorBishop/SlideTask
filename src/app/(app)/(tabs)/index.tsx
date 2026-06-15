@@ -6,22 +6,24 @@ import {
   Text,
   View,
 } from 'react-native';import { useFocusEffect, useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Type } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchTasksWithNodes } from '@/db/api';
 import { TaskWithNodes } from '@/types/types';
 import TaskCard from '@/components/tasks/TaskCard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
+import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [tasks, setTasks] = useState<TaskWithNodes[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const { level, label, nextLevel } = useFontSize();
 
   const loadTasks = useCallback(async () => {
     try {
-      const data = await fetchTasksWithNodes();
+      const data = await fetchTasksWithNodes(false); // 只加载进行中的任务
       setTasks(data);
     } catch (e) {
       console.error('加载任务失败', e);
@@ -107,6 +109,45 @@ export default function HomeScreen() {
           }
         />
       )}
+
+      {/* 字体大小调节按钮 */}
+      <Pressable
+        onPress={nextLevel}
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          right: 24,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: '#F3F4F6',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: [{ offsetX: 0, offsetY: 2, blurRadius: 8, color: 'rgba(17,24,39,0.10)' }],
+        }}
+      >
+        <Type size={18} color="#6B7280" />
+        <Text
+          style={{
+            position: 'absolute',
+            top: -6,
+            right: -6,
+            backgroundColor: '#111827',
+            color: '#FFFFFF',
+            fontSize: 9,
+            fontWeight: '700',
+            fontFamily: 'System',
+            paddingHorizontal: 4,
+            paddingVertical: 1,
+            borderRadius: 6,
+            overflow: 'hidden',
+            minWidth: 16,
+            textAlign: 'center',
+          }}
+        >
+          {FONT_SIZE_LABELS[level]}
+        </Text>
+      </Pressable>
 
       {/* 新建任务浮动按钮 */}
       <Pressable
