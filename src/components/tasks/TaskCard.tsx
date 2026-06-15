@@ -198,6 +198,32 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
         style={{ height: CONTAINER_HEIGHT, position: 'relative' }}
         onLayout={onBarLayout}
       >
+        {/* ── 第1层：进度条轨道（最底层，纯视觉）── */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: TRACK_TOP,
+            left: 0,
+            right: 0,
+            height: TRACK_HEIGHT,
+            backgroundColor: '#E8E8ED',
+            borderRadius: TRACK_HEIGHT / 2,
+            overflow: 'hidden',
+          }}
+        >
+          <Animated.View
+            style={[
+              fillStyle,
+              {
+                height: TRACK_HEIGHT,
+                backgroundColor: color,
+                borderRadius: TRACK_HEIGHT / 2,
+              },
+            ]}
+          />
+        </View>
+
         {/* ── 单节点 ── */}
         {barWidth > 0 && nodeCount === 1 && (() => {
           const node = nodes[0];
@@ -347,81 +373,45 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           );
         })}
 
-        {/* ── 可拖动的进度圆点把手（始终可见）── */}
+        {/* ── 第3层：可拖动的进度把手（最上层，接收全部交互）── */}
         {barWidth > 0 && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              {
-                position: 'absolute',
-                top: TRACK_CENTER_Y - HANDLE_SIZE / 2,
-                left: 0,
-                width: HANDLE_SIZE,
-                height: HANDLE_SIZE,
-                borderRadius: HANDLE_SIZE / 2,
-                backgroundColor: '#FFFFFF',
-                borderWidth: 3,
-                borderColor: color,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.12,
-                shadowRadius: 4,
-                elevation: 4,
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-              handlePositionStyle,
-            ]}
-          >
-            {/* 把手内芯（实心色圆） */}
-            <View
-              style={{
-                width: HANDLE_SIZE - 8,
-                height: HANDLE_SIZE - 8,
-                borderRadius: (HANDLE_SIZE - 8) / 2,
-                backgroundColor: color,
-              }}
-            />
-          </Animated.View>
-        )}
-
-        {/* 轨道背景 + 拖动手势（渲染在最上层，不被节点圆点遮挡） */}
-        <GestureDetector gesture={panGesture}>
-          <View
-            style={{
-              position: 'absolute',
-              top: TRACK_TOP - 8,
-              left: 0,
-              right: 0,
-              height: TRACK_HEIGHT + 16,
-              justifyContent: 'center',
-              alignItems: 'stretch',
-              zIndex: 10,
-            }}
-          >
-            {/* 视觉轨道：精确 8px 高 */}
-            <View
-              pointerEvents="none"
-              style={{
-                height: TRACK_HEIGHT,
-                backgroundColor: '#E8E8ED',
-                borderRadius: TRACK_HEIGHT / 2,
-                overflow: 'hidden',
-              }}
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
+              style={[
+                {
+                  position: 'absolute',
+                  top: TRACK_CENTER_Y - HANDLE_SIZE / 2,
+                  left: 0,
+                  width: HANDLE_SIZE,
+                  height: HANDLE_SIZE,
+                  borderRadius: HANDLE_SIZE / 2,
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 3,
+                  borderColor: color,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 4,
+                  elevation: 4,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                },
+                handlePositionStyle,
+              ]}
             >
-              <Animated.View
-                style={[
-                  fillStyle,
-                  {
-                    height: TRACK_HEIGHT,
-                    backgroundColor: color,
-                    borderRadius: TRACK_HEIGHT / 2,
-                  },
-                ]}
+              {/* 把手内芯（实心色圆） */}
+              <View
+                style={{
+                  width: HANDLE_SIZE - 8,
+                  height: HANDLE_SIZE - 8,
+                  borderRadius: (HANDLE_SIZE - 8) / 2,
+                  backgroundColor: color,
+                }}
               />
-            </View>
-          </View>
-        </GestureDetector>
+            </Animated.View>
+          </GestureDetector>
+        )}
       </View>
     </View>
   );
