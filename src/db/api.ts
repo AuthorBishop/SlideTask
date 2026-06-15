@@ -7,11 +7,19 @@ import { Task, TaskNode, TaskWithNodes } from '@/types/types';
 
 // ─── 任务列表（含节点）─────────────────────────────────────
 // 按 order_index DESC 排序（值越大越靠前），保证每次返回顺序完全一致
-export async function fetchTasksWithNodes(): Promise<TaskWithNodes[]> {
+// completed: undefined = 全部, false = 进行中, true = 已完成
+export async function fetchTasksWithNodes(completed?: boolean): Promise<TaskWithNodes[]> {
   const db = await dbReady;
 
+  let whereClause = '';
+  if (completed === true) {
+    whereClause = 'WHERE completed_at IS NOT NULL';
+  } else if (completed === false) {
+    whereClause = 'WHERE completed_at IS NULL';
+  }
+
   const tasks = await db.getAllAsync<Task>(
-    `SELECT * FROM tasks ORDER BY order_index DESC LIMIT 200`
+    `SELECT * FROM tasks ${whereClause} ORDER BY order_index DESC LIMIT 200`
   );
   if (tasks.length === 0) return [];
 
@@ -105,6 +113,19 @@ export async function updateTaskProgress(id: string, progress: number): Promise<
 export async function deleteTask(id: string): Promise<void> {
   const db = await dbReady;
   await db.runAsync(`DELETE FROM tasks WHERE id = ?`, [id]);
+}
+
+// ─── 标记任务完成 ─────────────────────────────────────────
+export async function completeTask(id: string): Promise<void> {
+  const db = await dbReady;
+  const now = new Date().toISOString();
+  await db.runAsync(`UPDATE tasks SET completed_at = ? WHERE id = ?`, [now, id]);
+}
+
+// ─── 取消完成（恢复为进行中）──────────────────────────────
+export async function uncompleteTask(id: string): Promise<void> {
+  const db = await dbReady;
+  await db.runAsync(`UPDATE tasks SET completed_at = NULL WHERE id = ?`, [id]);
 }
 
 // ─── 更新节点标题 ─────────────────────────────────────────

@@ -53,5 +53,10 @@ export const dbReady: Promise<SQLite.SQLiteDatabase> = (async () => {
     await db.execAsync(`UPDATE tasks SET order_index = rowid WHERE order_index = 0`);
   }
 
+  // 迁移：补加 completed_at 列（用于已完成任务功能）
+  if (!cols.some((c) => c.name === 'completed_at')) {
+    await db.execAsync(`ALTER TABLE tasks ADD COLUMN completed_at TEXT`);
+  }
+
   return db;
 })();

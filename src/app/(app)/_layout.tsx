@@ -5,6 +5,10 @@ export default function AppLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="task" />
+      <Stack.Screen
+        name="completed"
+        options={{ animation: 'slide_from_right' }}
+      />
     </Stack>
   );
 }

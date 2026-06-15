@@ -13,7 +13,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { TaskWithNodes } from '@/types/types';
-import { updateTaskProgress, updateNodeTitle } from '@/db/api';
+import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
+import { CheckCircle } from 'lucide-react-native';
 
 interface TaskCardProps {
   task: TaskWithNodes;
@@ -21,15 +22,16 @@ interface TaskCardProps {
   onOpenDetail: (taskId: string) => void;
 }
 
-const LABEL_MAX_WIDTH = 72;
+const LABEL_MAX_WIDTH = 80;
 const TRACK_HEIGHT = 8;
 const NODE_DOT_R = 6;       // 圆点半径稍大一点，更易看清
 const HANDLE_SIZE = 18;
-const LABEL_LINE_HEIGHT = 15;
-const LABEL_FONT_SIZE = 11;
+const LABEL_LINE_HEIGHT = 18; // 从 15 增大，匹配更大字体
+const LABEL_FONT_SIZE = 13;   // 从 11 增大
 const LABEL_ROWS = 1;
-const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
-const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
+const LABEL_MARGIN = 8;       // 标签区与轨道的间距
+const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
+const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
 
 // 关键基准线：标签区下方 → 轨道中心线
 // 圆心必须精确落在轨道中心线上
@@ -167,6 +169,21 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           >
             详情
           </Text>
+        </Pressable>
+        {/* 完成按钮 */}
+        <Pressable
+          onPress={async () => {
+            try {
+              await completeTask(task.id);
+              onUpdate();
+            } catch (e) {
+              console.error('完成任务失败', e);
+            }
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginLeft: 12 }}
+        >
+          <CheckCircle size={18} color="#9CA3AF" />
         </Pressable>
       </View>
 

@@ -44,12 +44,27 @@ export default function HomeScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       {/* 顶部标题区 */}
       <View className="px-5 pt-4 pb-6">
-        <Text className="text-3xl font-glow-sans-sc text-foreground font-semibold tracking-tight">
-          流程
-        </Text>
-        <Text className="text-sm font-glow-sans-sc text-muted-foreground mt-1">
-          {tasks.length > 0 ? `${tasks.length} 个进行中` : '开始管理你的任务'}
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-3xl font-glow-sans-sc text-foreground font-semibold tracking-tight">
+              流程
+            </Text>
+            <Text className="text-sm font-glow-sans-sc text-muted-foreground mt-1">
+              {tasks.length > 0 ? `${tasks.length} 个进行中` : '开始管理你的任务'}
+            </Text>
+          </View>
+          {/* 已完成入口 */}
+          <Pressable
+            onPress={() => router.push('/(app)/completed')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="px-4 py-2 rounded-full"
+            style={{ backgroundColor: '#F3F4F6' }}
+          >
+            <Text className="text-sm font-glow-sans-sc" style={{ color: '#6B7280' }}>
+              已完成
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* 任务列表 */}

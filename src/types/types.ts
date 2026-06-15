@@ -13,6 +13,7 @@ export interface Task {
   note: string;
   color: string;
   progress_position: number; // 0.0 ~ 1.0
+  completed_at: string | null; // null = 进行中，非空 = 已完成
   created_at: string;
   updated_at: string;
   nodes?: TaskNode[];
