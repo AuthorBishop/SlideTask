@@ -198,42 +198,6 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
         style={{ height: CONTAINER_HEIGHT, position: 'relative' }}
         onLayout={onBarLayout}
       >
-        {/* 轨道背景 + 拖动手势（可触摸区域精确等于视觉轨道） */}
-        <GestureDetector gesture={panGesture}>
-          <View
-            style={{
-              position: 'absolute',
-              top: TRACK_TOP - 8,   // 上下各扩展 8px 作为触摸容差，但不影响视觉
-              left: 0,
-              right: 0,
-              height: TRACK_HEIGHT + 16,
-              justifyContent: 'center',
-              alignItems: 'stretch',
-            }}
-          >
-            {/* 视觉轨道：精确 8px 高 */}
-            <View
-              style={{
-                height: TRACK_HEIGHT,
-                backgroundColor: '#E8E8ED',
-                borderRadius: TRACK_HEIGHT / 2,
-                overflow: 'hidden',
-              }}
-            >
-              <Animated.View
-                style={[
-                  fillStyle,
-                  {
-                    height: TRACK_HEIGHT,
-                    backgroundColor: color,
-                    borderRadius: TRACK_HEIGHT / 2,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </GestureDetector>
-
         {/* ── 单节点 ── */}
         {barWidth > 0 && nodeCount === 1 && (() => {
           const node = nodes[0];
@@ -310,8 +274,9 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
 
           return (
             <View key={node.id}>
-              {/* 节点圆点（首尾对齐到边缘） */}
+              {/* 节点圆点（首尾对齐到边缘，不拦截触摸） */}
               <View
+                pointerEvents="none"
                 style={{
                   position: 'absolute',
                   top: dotTop,
@@ -419,6 +384,44 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             />
           </Animated.View>
         )}
+
+        {/* 轨道背景 + 拖动手势（渲染在最上层，不被节点圆点遮挡） */}
+        <GestureDetector gesture={panGesture}>
+          <View
+            style={{
+              position: 'absolute',
+              top: TRACK_TOP - 8,
+              left: 0,
+              right: 0,
+              height: TRACK_HEIGHT + 16,
+              justifyContent: 'center',
+              alignItems: 'stretch',
+              zIndex: 10,
+            }}
+          >
+            {/* 视觉轨道：精确 8px 高 */}
+            <View
+              pointerEvents="none"
+              style={{
+                height: TRACK_HEIGHT,
+                backgroundColor: '#E8E8ED',
+                borderRadius: TRACK_HEIGHT / 2,
+                overflow: 'hidden',
+              }}
+            >
+              <Animated.View
+                style={[
+                  fillStyle,
+                  {
+                    height: TRACK_HEIGHT,
+                    backgroundColor: color,
+                    borderRadius: TRACK_HEIGHT / 2,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </GestureDetector>
       </View>
     </View>
   );
