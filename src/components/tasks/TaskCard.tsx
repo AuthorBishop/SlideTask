@@ -27,12 +27,16 @@ const NODE_DOT_R = 6;       // 圆点半径稍大一点，更易看清
 const HANDLE_SIZE = 18;
 const LABEL_LINE_HEIGHT = 15;
 const LABEL_FONT_SIZE = 11;
+const LABEL_ROWS = 1;
+const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
+const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
 
 // 关键基准线：标签区下方 → 轨道中心线
 // 圆心必须落在轨道中心线上 (ABOVE_HEIGHT + NODE_DOT_R)
 // 轨道 top = 圆心Y - TRACK_HEIGHT/2
 const DOT_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;
 const TRACK_TOP = DOT_CENTER_Y - TRACK_HEIGHT / 2;
+const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
 
 export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
   const { nodes, color, note } = task;
@@ -127,11 +131,6 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   }, []);
 
   const bgColor = hexToRgba(color, 0.08);
-
-  const LABEL_ROWS = 1;
-  const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
-  const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
-  const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
 
   return (
     <View
