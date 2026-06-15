@@ -1,6 +1,5 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   LayoutChangeEvent,
   Pressable,
   Text,
@@ -17,6 +16,7 @@ import { TaskWithNodes } from '@/types/types';
 import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
 import { CheckCircle } from 'lucide-react-native';
 import { useFontSize } from '@/ctx/fontSize';
+import { showConfirm } from '@/lib/utils';
 
 interface TaskCardProps {
   task: TaskWithNodes;
@@ -147,25 +147,18 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   const bgColor = hexToRgba(color, 0.08);
 
   // 完成确认弹窗
-  const handleComplete = useCallback(() => {
-    Alert.alert(
+  const handleComplete = useCallback(async () => {
+    const confirmed = await showConfirm(
       '确认完成',
-      `确认完成任务「${task.title}」吗？完成后将移至已完成列表。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确认完成',
-          onPress: async () => {
-            try {
-              await completeTask(task.id);
-              onUpdate();
-            } catch (e) {
-              console.error('完成任务失败', e);
-            }
-          },
-        },
-      ],
+      `确认完成任务「${task.title}」吗？完成后将移至已完成列表。`
     );
+    if (!confirmed) return;
+    try {
+      await completeTask(task.id);
+      onUpdate();
+    } catch (e) {
+      console.error('完成任务失败', e);
+    }
   }, [task.id, task.title, onUpdate]);
 
   return (

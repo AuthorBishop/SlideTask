@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   Text,
@@ -12,6 +11,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchTasksWithNodes, uncompleteTask } from '@/db/api';
 import { TaskWithNodes } from '@/types/types';
+import { showConfirm } from '@/lib/utils';
 
 export default function CompletedScreen() {
   const router = useRouter();
@@ -35,25 +35,18 @@ export default function CompletedScreen() {
     }, [loadCompleted])
   );
 
-  const handleUncomplete = (taskId: string, taskTitle: string) => {
-    Alert.alert(
+  const handleUncomplete = async (taskId: string, taskTitle: string) => {
+    const confirmed = await showConfirm(
       '确认取消完成',
-      `确认取消完成任务「${taskTitle}」吗？任务将回到主页列表。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确认取消',
-          onPress: async () => {
-            try {
-              await uncompleteTask(taskId);
-              await loadCompleted();
-            } catch (e) {
-              console.error('取消完成失败', e);
-            }
-          },
-        },
-      ],
+      `确认取消完成任务「${taskTitle}」吗？任务将回到主页列表。`
     );
+    if (!confirmed) return;
+    try {
+      await uncompleteTask(taskId);
+      await loadCompleted();
+    } catch (e) {
+      console.error('取消完成失败', e);
+    }
   };
 
   return (
