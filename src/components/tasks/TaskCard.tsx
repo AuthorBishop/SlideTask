@@ -81,8 +81,14 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   );
 
   // ── 拖动手势 ──
+  // minDist=0：Web 端鼠标按下即拖，无激活死区
+  // activateAfterLongPress=0：无需长按等待
+  // failOffsetY=[-10,10]：允许小幅纵向偏移（避免滚动冲突）
   const startX = useSharedValue(0);
   const panGesture = Gesture.Pan()
+    .activateAfterLongPress(0)
+    .minDistance(0)
+    .failOffsetY([-10, 10])
     .onStart(() => {
       startX.value = dragProgress.value * barWidth;
     })
