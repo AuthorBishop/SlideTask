@@ -85,9 +85,15 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
     width: `${dragProgress.value * 100}%`,
   }));
 
-  const handlePositionStyle = useAnimatedStyle(() => ({
-    left: `${dragProgress.value * 100}%`,
-  }));
+  const handlePositionStyle = useAnimatedStyle(() => {
+    // 用 marginLeft 代替 left，避免 translateX 叠加溢出
+    // 把手中心对齐进度位置，marginLeft 自动扣除把手一半宽度
+    const pct = dragProgress.value * 100;
+    const marginLeftPx = (pct / 100) * barWidth - HANDLE_SIZE / 2;
+    return {
+      marginLeft: marginLeftPx,
+    };
+  });
 
   const saveNodeTitle = useCallback(async () => {
     if (!editingNodeId || !editingText.trim()) {
@@ -178,12 +184,20 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
               style={{
                 height: TRACK_HEIGHT,
                 backgroundColor: '#E8E8ED',
-                borderRadius: 999,
+                borderRadius: TRACK_HEIGHT / 2,
                 overflow: 'hidden',
-                flex: 1,
               }}
             >
-              <Animated.View style={[fillStyle, { height: TRACK_HEIGHT, backgroundColor: color, borderRadius: 999 }]} />
+              <Animated.View
+                style={[
+                  fillStyle,
+                  {
+                    height: TRACK_HEIGHT,
+                    backgroundColor: color,
+                    borderRadius: TRACK_HEIGHT / 2,
+                  },
+                ]}
+              />
             </View>
           </View>
         </GestureDetector>
@@ -252,10 +266,12 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           const dotLeft = Math.max(0, leftPx - NODE_DOT_R);
           const dotTop = ABOVE_HEIGHT;
 
-          let labelLeft = leftPx - LABEL_MAX_WIDTH / 2;
+          // 动态标签最大宽度：节点间距的一半，防止相邻标签重叠
+          const dynamicMaxWidth = Math.min(LABEL_MAX_WIDTH, barWidth / (nodeCount - 1));
+          let labelLeft = leftPx - dynamicMaxWidth / 2;
           if (isFirst) labelLeft = 0;
-          if (isLast) labelLeft = Math.max(0, barWidth - LABEL_MAX_WIDTH);
-          labelLeft = Math.max(0, Math.min(barWidth - LABEL_MAX_WIDTH, labelLeft));
+          if (isLast) labelLeft = Math.max(0, barWidth - dynamicMaxWidth);
+          labelLeft = Math.max(0, Math.min(barWidth - dynamicMaxWidth, labelLeft));
 
           const isEditing = editingNodeId === node.id;
           const displayTitle = localTitles[node.id] ?? node.title;
@@ -267,12 +283,12 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                 style={{
                   position: 'absolute',
                   top: dotTop,
-                  left: isFirst ? 0 : (isLast ? undefined : dotLeft),
-                  right: isLast ? 0 : undefined,
-                  ...(isFirst || isLast
-                    ? { transform: [{ translateX: isFirst ? -NODE_DOT_R : NODE_DOT_R }] }
-                    : {}),
-                  width: isFirst || isLast ? NODE_DOT_R * 2 : NODE_DOT_R * 2,
+                  ...(isFirst
+                    ? { left: -NODE_DOT_R }
+                    : isLast
+                    ? { right: -NODE_DOT_R }
+                    : { left: dotLeft }),
+                  width: NODE_DOT_R * 2,
                   height: NODE_DOT_R * 2,
                   borderRadius: NODE_DOT_R,
                   borderWidth: 2,
@@ -286,7 +302,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                 style={{
                   position: 'absolute',
                   left: labelLeft,
-                  width: LABEL_MAX_WIDTH,
+                  width: dynamicMaxWidth,
                   ...(isAbove
                     ? { top: 0, justifyContent: 'flex-end', height: ABOVE_HEIGHT }
                     : { top: ABOVE_HEIGHT + NODE_DOT_R * 2 + 2, height: BELOW_HEIGHT }),
@@ -336,55 +352,40 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
 
         {/* ── 可拖动的进度圆点把手（始终可见）── */}
         {barWidth > 0 && (
-          <>
-            {/* 拖动手势覆盖层 */}
-            <GestureDetector gesture={panGesture}>
-              <View
-                style={{
-                  position: 'absolute',
-                  top: ABOVE_HEIGHT - HANDLE_SIZE / 2,
-                  left: 0,
-                  right: 0,
-                  height: HANDLE_SIZE + 16,
-                }}
-              />
-            </GestureDetector>
-            {/* 把手外圈（色环 + 阴影） */}
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                {
-                  position: 'absolute',
-                  top: ABOVE_HEIGHT + NODE_DOT_R - HANDLE_SIZE / 2,
-                  width: HANDLE_SIZE,
-                  height: HANDLE_SIZE,
-                  borderRadius: HANDLE_SIZE / 2,
-                  backgroundColor: '#FFFFFF',
-                  borderWidth: 3,
-                  borderColor: color,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.12,
-                  shadowRadius: 4,
-                  elevation: 4,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transform: [{ translateX: -HANDLE_SIZE / 2 }],
-                },
-                handlePositionStyle,
-              ]}
-            >
-              {/* 把手内芯（实心色圆） */}
-              <View
-                style={{
-                  width: HANDLE_SIZE - 8,
-                  height: HANDLE_SIZE - 8,
-                  borderRadius: (HANDLE_SIZE - 8) / 2,
-                  backgroundColor: color,
-                }}
-              />
-            </Animated.View>
-          </>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: 'absolute',
+                top: ABOVE_HEIGHT + NODE_DOT_R - HANDLE_SIZE / 2,
+                left: 0,
+                width: HANDLE_SIZE,
+                height: HANDLE_SIZE,
+                borderRadius: HANDLE_SIZE / 2,
+                backgroundColor: '#FFFFFF',
+                borderWidth: 3,
+                borderColor: color,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.12,
+                shadowRadius: 4,
+                elevation: 4,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              handlePositionStyle,
+            ]}
+          >
+            {/* 把手内芯（实心色圆） */}
+            <View
+              style={{
+                width: HANDLE_SIZE - 8,
+                height: HANDLE_SIZE - 8,
+                borderRadius: (HANDLE_SIZE - 8) / 2,
+                backgroundColor: color,
+              }}
+            />
+          </Animated.View>
         )}
       </View>
     </View>
