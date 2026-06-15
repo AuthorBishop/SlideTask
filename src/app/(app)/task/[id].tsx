@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Trash2, Check, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, Check, X, ChevronUp, ChevronDown } from 'lucide-react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -26,6 +26,7 @@ import {
   deleteNode,
   updateNodeTitle,
   updateTaskProgress,
+  reorderNodes,
 } from '@/db/api';
 
 // ─── 辅助组件：区块标题 ──────────────────────────────────
@@ -149,6 +150,30 @@ export default function TaskDetailScreen() {
     } catch (e) {
       setErrorMsg('删除节点失败');
       console.error('删除节点失败', e);
+    }
+  };
+
+  // ── 节点排序：上移/下移 ──
+  const handleMoveNode = async (index: number, direction: -1 | 1) => {
+    if (!task) return;
+    const nodes = [...task.nodes];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= nodes.length) return;
+
+    // 交换两个节点的 position
+    const temp = nodes[index];
+    nodes[index] = nodes[targetIndex];
+    nodes[targetIndex] = temp;
+
+    // 重新分配 position 值
+    const reordered = nodes.map((n, i) => ({ id: n.id, position: i }));
+
+    try {
+      await reorderNodes(reordered);
+      await loadTask();
+    } catch (e) {
+      console.error('排序节点失败', e);
+      setErrorMsg('排序失败，请重试');
     }
   };
 
@@ -290,16 +315,40 @@ export default function TaskDetailScreen() {
               const nodePos = idx * step;
               const isCompleted = nodePos <= task.progress_position + 0.001;
               const isEditing = editingNodeId === node.id;
+              const isFirst = idx === 0;
+              const isLast = idx === task.nodes.length - 1;
 
               return (
                 <View
                   key={node.id}
-                  className="flex-row items-center mb-2 py-3 px-4 rounded-2xl"
+                  className="flex-row items-center mb-2 py-3 px-3 rounded-2xl"
                   style={{
                     backgroundColor: isCompleted ? `${accentColor}0D` : '#F8F9FB',
                     borderCurve: 'continuous',
                   }}
                 >
+                  {/* 排序按钮组 */}
+                  {!isEditing && (
+                    <View className="mr-1 flex-shrink-0">
+                      <Pressable
+                        onPress={() => handleMoveNode(idx, -1)}
+                        disabled={isFirst}
+                        className="p-0.5"
+                        style={{ opacity: isFirst ? 0.25 : 1, cursor: isFirst ? 'default' : 'pointer' }}
+                      >
+                        <ChevronUp size={14} color={isFirst ? '#D1D5DB' : '#9CA3AF'} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleMoveNode(idx, 1)}
+                        disabled={isLast}
+                        className="p-0.5"
+                        style={{ opacity: isLast ? 0.25 : 1, cursor: isLast ? 'default' : 'pointer' }}
+                      >
+                        <ChevronDown size={14} color={isLast ? '#D1D5DB' : '#9CA3AF'} />
+                      </Pressable>
+                    </View>
+                  )}
+
                   {/* 状态指示圆 */}
                   <View
                     className="w-7 h-7 rounded-full items-center justify-center mr-3 flex-shrink-0"

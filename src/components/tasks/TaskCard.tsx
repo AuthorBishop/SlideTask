@@ -32,10 +32,12 @@ const ABOVE_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
 const BELOW_HEIGHT = LABEL_LINE_HEIGHT * LABEL_ROWS + 4;
 
 // 关键基准线：标签区下方 → 轨道中心线
-// 圆心必须落在轨道中心线上 (ABOVE_HEIGHT + NODE_DOT_R)
-// 轨道 top = 圆心Y - TRACK_HEIGHT/2
-const DOT_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;
-const TRACK_TOP = DOT_CENTER_Y - TRACK_HEIGHT / 2;
+// 圆心必须精确落在轨道中心线上
+// 轨道 centerY = ABOVE_HEIGHT + NODE_DOT_R
+// 轨道 top = centerY - TRACK_HEIGHT/2
+const TRACK_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;  // 轨道垂直中心 = 圆心 Y
+const DOT_TOP = TRACK_CENTER_Y - NODE_DOT_R;        // 圆心 top = centerY - R
+const TRACK_TOP = TRACK_CENTER_Y - TRACK_HEIGHT / 2;
 const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
 
 export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
@@ -173,18 +175,20 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
         style={{ height: CONTAINER_HEIGHT, position: 'relative' }}
         onLayout={onBarLayout}
       >
-        {/* 轨道背景 + 拖动手势 */}
+        {/* 轨道背景 + 拖动手势（可触摸区域精确等于视觉轨道） */}
         <GestureDetector gesture={panGesture}>
           <View
             style={{
               position: 'absolute',
-              top: TRACK_TOP,
+              top: TRACK_TOP - 8,   // 上下各扩展 8px 作为触摸容差，但不影响视觉
               left: 0,
               right: 0,
               height: TRACK_HEIGHT + 16,
               justifyContent: 'center',
+              alignItems: 'stretch',
             }}
           >
+            {/* 视觉轨道：精确 8px 高 */}
             <View
               style={{
                 height: TRACK_HEIGHT,
@@ -269,7 +273,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           const isFirst = i === 0;
           const isLast = i === nodeCount - 1;
           const dotLeft = Math.max(0, leftPx - NODE_DOT_R);
-          const dotTop = DOT_CENTER_Y - NODE_DOT_R;
+          const dotTop = DOT_TOP;
 
           // 动态标签最大宽度：节点间距的一半，防止相邻标签重叠
           const dynamicMaxWidth = Math.min(LABEL_MAX_WIDTH, barWidth / (nodeCount - 1));
@@ -310,7 +314,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   width: dynamicMaxWidth,
                   ...(isAbove
                     ? { top: 0, justifyContent: 'flex-end', height: ABOVE_HEIGHT }
-                    : { top: DOT_CENTER_Y + NODE_DOT_R + 2, height: BELOW_HEIGHT }),
+                    : { top: TRACK_CENTER_Y + NODE_DOT_R + 2, height: BELOW_HEIGHT }),
                 }}
               >
                 {isEditing ? (
@@ -362,7 +366,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             style={[
               {
                 position: 'absolute',
-                top: DOT_CENTER_Y - HANDLE_SIZE / 2,
+                top: TRACK_CENTER_Y - HANDLE_SIZE / 2,
                 left: 0,
                 width: HANDLE_SIZE,
                 height: HANDLE_SIZE,
