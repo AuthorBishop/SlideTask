@@ -1,14 +1,15 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Plus, Trash2, Check, X } from 'lucide-react-native';
 import Animated, {
@@ -52,6 +53,7 @@ export default function TaskDetailScreen() {
   const [editColor, setEditColor] = useState(TASK_COLORS[0]);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingNodeText, setEditingNodeText] = useState('');
+  const [savingNodeId, setSavingNodeId] = useState<string | null>(null);
   const [newNodeText, setNewNodeText] = useState('');
   const [showAddNode, setShowAddNode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -79,7 +81,10 @@ export default function TaskDetailScreen() {
     }
   }, [id]);
 
-  useFocusEffect(useCallback(() => { loadTask(); }, [loadTask]));
+  useEffect(() => {
+    loadTask();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveBasic = async () => {
     if (!task || !editTitle.trim()) { setErrorMsg('任务名称不能为空'); return; }
@@ -94,10 +99,20 @@ export default function TaskDetailScreen() {
   };
 
   const handleSaveNodeTitle = async () => {
-    if (!editingNodeId || !editingNodeText.trim()) { setEditingNodeId(null); return; }
-    try { await updateNodeTitle(editingNodeId, editingNodeText.trim()); await loadTask(); }
-    catch (e) { console.error('保存节点失败', e); }
-    setEditingNodeId(null);
+    if (!editingNodeId || !editingNodeText.trim() || savingNodeId === editingNodeId) {
+      setEditingNodeId(null);
+      return;
+    }
+    setSavingNodeId(editingNodeId);
+    try {
+      await updateNodeTitle(editingNodeId, editingNodeText.trim());
+      await loadTask();
+    } catch (e) {
+      console.error('保存节点失败', e);
+    } finally {
+      setSavingNodeId(null);
+      setEditingNodeId(null);
+    }
   };
 
   const handleAddNode = async () => {
@@ -120,10 +135,21 @@ export default function TaskDetailScreen() {
     if (task.nodes.length <= 1) { setErrorMsg('至少需要保留一个节点'); return; }
     setErrorMsg(''); setSuccessMsg('');
     try {
+      // 删除节点后，重新计算进度位置：找到被删节点的索引，回退到前一个节点
+      const deletedIdx = task.nodes.findIndex((n) => n.id === nodeId);
+      const remainingCount = task.nodes.length - 1;
+      let newProgress = task.progress_position;
+      if (remainingCount > 0 && deletedIdx >= 0) {
+        // 将进度映射到新的节点范围
+        newProgress = Math.min(deletedIdx / Math.max(remainingCount - 1, 1), 1);
+      }
       await deleteNode(nodeId);
-      await updateTaskProgress(task.id, Math.min(task.progress_position, 1));
+      await updateTaskProgress(task.id, newProgress);
       await loadTask();
-    } catch (e) { console.error('删除节点失败', e); }
+    } catch (e) {
+      setErrorMsg('删除节点失败');
+      console.error('删除节点失败', e);
+    }
   };
 
   const handleDeleteTask = async () => {
@@ -131,13 +157,15 @@ export default function TaskDetailScreen() {
     setDeleting(true); setErrorMsg('');
     try {
       await deleteTask(task.id);
-      router.back();
     } catch (e) {
       setErrorMsg('删除失败，请重试');
       console.error('删除任务失败', e);
-      setDeleting(false);
       setShowDeleteConfirm(false);
+      setDeleting(false);
+      return;
     }
+    setDeleting(false);
+    router.back();
   };
 
   const deleteConfirmStyle = useAnimatedStyle(() => ({
@@ -176,7 +204,7 @@ export default function TaskDetailScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
         className="flex-1"
       >
         {/* 顶部导航栏 */}
@@ -219,10 +247,11 @@ export default function TaskDetailScreen() {
                 key={c} onPress={() => setEditColor(c)}
                 style={{
                   width: 28, height: 28, borderRadius: 14, backgroundColor: c,
-                  borderWidth: editColor === c ? 3 : 0, borderColor: '#FFFFFF',
+                  borderWidth: editColor === c ? 2.5 : 0, borderColor: '#374151',
                   shadowColor: c, shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: editColor === c ? 0.5 : 0, shadowRadius: 4,
                   elevation: editColor === c ? 4 : 0,
+                  cursor: 'pointer',
                 }}
               />
             ))}
@@ -247,10 +276,11 @@ export default function TaskDetailScreen() {
           <View className="mt-6">
             <View className="flex-row items-center justify-between mb-3">
               <SectionHeader label="任务节点" />
-              <Pressable
-                onPress={() => { setShowAddNode(true); setTimeout(() => newNodeInputRef.current?.focus(), 80); }}
-                className="flex-row items-center gap-1"
-              >
+            <Pressable
+              onPress={() => { setShowAddNode(true); setTimeout(() => newNodeInputRef.current?.focus(), 80); }}
+              className="flex-row items-center gap-1"
+              style={{ cursor: 'pointer' }}
+            >
                 <Plus size={14} color={accentColor} />
                 <Text className="text-xs font-glow-sans-sc" style={{ color: accentColor }}>添加</Text>
               </Pressable>
@@ -302,6 +332,12 @@ export default function TaskDetailScreen() {
                         setEditingNodeText(node.title);
                         setTimeout(() => nodeInputRef.current?.focus(), 50);
                       }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                        setEditingNodeId(node.id);
+                        setEditingNodeText(node.title);
+                        setTimeout(() => nodeInputRef.current?.focus(), 50);
+                      }}
                     >
                       <Text
                         className="text-sm font-glow-sans-sc"
@@ -314,7 +350,7 @@ export default function TaskDetailScreen() {
 
                   {/* 删除 */}
                   {!isEditing && (
-                    <Pressable onPress={() => handleDeleteNode(node.id)} className="ml-2 p-1">
+                    <Pressable onPress={() => handleDeleteNode(node.id)} className="ml-2 p-1" style={{ cursor: 'pointer' }}>
                       <X size={15} color="#D1D5DB" />
                     </Pressable>
                   )}
@@ -353,7 +389,7 @@ export default function TaskDetailScreen() {
             <Pressable
               onPress={toggleDeleteConfirm}
               className="flex-row items-center justify-center py-3.5 rounded-2xl"
-              style={{ backgroundColor: '#FEF2F2', borderCurve: 'continuous' }}
+              style={{ backgroundColor: '#FEF2F2', borderCurve: 'continuous', cursor: 'pointer' }}
             >
               <Trash2 size={16} color="#EF4444" />
               <Text className="text-sm font-glow-sans-sc text-destructive ml-2">删除此任务</Text>
@@ -364,7 +400,7 @@ export default function TaskDetailScreen() {
                 <Pressable
                   onPress={toggleDeleteConfirm}
                   className="flex-1 py-3 rounded-2xl items-center bg-secondary"
-                  style={{ borderCurve: 'continuous' }}
+                  style={{ borderCurve: 'continuous', cursor: 'pointer' }}
                 >
                   <Text className="text-sm font-glow-sans-sc text-muted-foreground">取消</Text>
                 </Pressable>
@@ -372,7 +408,12 @@ export default function TaskDetailScreen() {
                   onPress={handleDeleteTask}
                   disabled={deleting}
                   className="flex-1 py-3 rounded-2xl items-center flex-row justify-center gap-2"
-                  style={{ backgroundColor: '#EF4444', borderCurve: 'continuous', opacity: deleting ? 0.6 : 1 }}
+                  style={{
+                    backgroundColor: '#EF4444',
+                    borderCurve: 'continuous',
+                    opacity: deleting ? 0.6 : 1,
+                    cursor: deleting ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   {deleting && <ActivityIndicator size="small" color="#FFFFFF" />}
                   <Text className="text-sm font-glow-sans-sc text-white font-medium">

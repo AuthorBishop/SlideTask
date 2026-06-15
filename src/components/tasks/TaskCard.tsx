@@ -23,10 +23,16 @@ interface TaskCardProps {
 
 const LABEL_MAX_WIDTH = 72;
 const TRACK_HEIGHT = 8;
-const NODE_DOT_R = 5;
+const NODE_DOT_R = 6;       // 圆点半径稍大一点，更易看清
 const HANDLE_SIZE = 18;
 const LABEL_LINE_HEIGHT = 15;
 const LABEL_FONT_SIZE = 11;
+
+// 关键基准线：标签区下方 → 轨道中心线
+// 圆心必须落在轨道中心线上 (ABOVE_HEIGHT + NODE_DOT_R)
+// 轨道 top = 圆心Y - TRACK_HEIGHT/2
+const DOT_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;
+const TRACK_TOP = DOT_CENTER_Y - TRACK_HEIGHT / 2;
 
 export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
   const { nodes, color, note } = task;
@@ -173,7 +179,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           <View
             style={{
               position: 'absolute',
-              top: ABOVE_HEIGHT + NODE_DOT_R - TRACK_HEIGHT / 2,
+              top: TRACK_TOP,
               left: 0,
               right: 0,
               height: TRACK_HEIGHT + 16,
@@ -264,7 +270,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           const isFirst = i === 0;
           const isLast = i === nodeCount - 1;
           const dotLeft = Math.max(0, leftPx - NODE_DOT_R);
-          const dotTop = ABOVE_HEIGHT;
+          const dotTop = DOT_CENTER_Y - NODE_DOT_R;
 
           // 动态标签最大宽度：节点间距的一半，防止相邻标签重叠
           const dynamicMaxWidth = Math.min(LABEL_MAX_WIDTH, barWidth / (nodeCount - 1));
@@ -305,7 +311,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   width: dynamicMaxWidth,
                   ...(isAbove
                     ? { top: 0, justifyContent: 'flex-end', height: ABOVE_HEIGHT }
-                    : { top: ABOVE_HEIGHT + NODE_DOT_R * 2 + 2, height: BELOW_HEIGHT }),
+                    : { top: DOT_CENTER_Y + NODE_DOT_R + 2, height: BELOW_HEIGHT }),
                 }}
               >
                 {isEditing ? (
@@ -357,7 +363,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             style={[
               {
                 position: 'absolute',
-                top: ABOVE_HEIGHT + NODE_DOT_R - HANDLE_SIZE / 2,
+                top: DOT_CENTER_Y - HANDLE_SIZE / 2,
                 left: 0,
                 width: HANDLE_SIZE,
                 height: HANDLE_SIZE,
