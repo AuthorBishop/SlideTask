@@ -16,7 +16,7 @@ import { TaskWithNodes } from '@/types/types';
 import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
 import { CheckCircle } from 'lucide-react-native';
 import { useFontSize } from '@/ctx/fontSize';
-import { showConfirm } from '@/lib/utils';
+import { useConfirm } from '@/ctx/confirm';
 
 interface TaskCardProps {
   task: TaskWithNodes;
@@ -28,8 +28,8 @@ const LABEL_MAX_WIDTH = 80;
 const TRACK_HEIGHT = 8;
 const NODE_DOT_R = 6;
 const HANDLE_SIZE = 18;
-const LABEL_ROWS = 1;
-const LABEL_MARGIN = 8;
+const LABEL_ROWS = 2; // 文字支持2行自适应
+const LABEL_MARGIN = 16; // 增大节点标签上下间距（8→16），防止误触
 
 
 
@@ -41,6 +41,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
 
   const { fontSize: LABEL_FONT_SIZE } = useFontSize();
+  const { showConfirm } = useConfirm();
   const LINE_HEIGHT = LABEL_FONT_SIZE + 5;
   const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
   const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
@@ -148,10 +149,13 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
 
   // 完成确认弹窗
   const handleComplete = useCallback(async () => {
-    const confirmed = await showConfirm(
-      '确认完成',
-      `确认完成任务「${task.title}」吗？完成后将移至已完成列表。`
-    );
+    const confirmed = await showConfirm({
+      title: '确认完成',
+      message: `确认完成任务「${task.title}」吗？\n完成后将移至已完成列表。`,
+      confirmText: '确认完成',
+      cancelText: '取消',
+      confirmColor: color,
+    });
     if (!confirmed) return;
     try {
       await completeTask(task.id);
@@ -159,7 +163,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
     } catch (e) {
       console.error('完成任务失败', e);
     }
-  }, [task.id, task.title, onUpdate]);
+  }, [task.id, task.title, onUpdate, showConfirm, color]);
 
   return (
     <View
@@ -167,17 +171,15 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
       className="px-4 pt-3 pb-3 mb-3"
     >
       {/* ── 任务标题行 ── */}
-      <View className="flex-row items-center mb-2">
+      <View className="flex-row items-start mb-2">
         <Text
           className="text-sm font-sans text-foreground flex-shrink"
-          numberOfLines={1}
         >
           {task.title}
         </Text>
         {note.trim() !== '' && (
           <Text
             className="text-xs font-sans text-muted-foreground ml-2 flex-1"
-            numberOfLines={1}
           >
             {note.trim()}
           </Text>
@@ -266,7 +268,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                 >
                   <Text
                     style={{ fontSize: LABEL_FONT_SIZE, color, fontFamily: 'System', fontWeight: '500' }}
-                    numberOfLines={1}
+                    numberOfLines={LABEL_ROWS}
                   >
                     {displayTitle}
                   </Text>
@@ -361,7 +363,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                         fontWeight: isCompleted ? '500' : '400',
                         textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
                       }}
-                      numberOfLines={1}
+                      numberOfLines={LABEL_ROWS}
                     >
                       {displayTitle}
                     </Text>

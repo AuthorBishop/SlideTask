@@ -11,12 +11,13 @@ import { ArrowLeft, RotateCcw } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchTasksWithNodes, uncompleteTask } from '@/db/api';
 import { TaskWithNodes } from '@/types/types';
-import { showConfirm } from '@/lib/utils';
+import { useConfirm } from '@/ctx/confirm';
 
 export default function CompletedScreen() {
   const router = useRouter();
   const [tasks, setTasks] = useState<TaskWithNodes[]>([]);
   const [loading, setLoading] = useState(true);
+  const { showConfirm } = useConfirm();
 
   const loadCompleted = useCallback(async () => {
     try {
@@ -36,10 +37,13 @@ export default function CompletedScreen() {
   );
 
   const handleUncomplete = async (taskId: string, taskTitle: string) => {
-    const confirmed = await showConfirm(
-      '确认取消完成',
-      `确认取消完成任务「${taskTitle}」吗？任务将回到主页列表。`
-    );
+    const confirmed = await showConfirm({
+      title: '确认取消完成',
+      message: `确认取消完成任务「${taskTitle}」吗？\n任务将回到主页列表。`,
+      confirmText: '确认取消',
+      cancelText: '取消',
+      confirmColor: '#F59E0B',
+    });
     if (!confirmed) return;
     try {
       await uncompleteTask(taskId);
