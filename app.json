@@ -36,6 +36,13 @@
     },
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b2e1b726-7cfc-4ae1-a1b4-bc4f975e13a5"
+      }
+    },
+    "owner": "authorbishop"
   }
 }
