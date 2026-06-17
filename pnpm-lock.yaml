@@ -9,8 +9,6 @@ overrides:
   expo-video: 55.0.5
   metro-core: 0.83.7
 
-packageExtensionsChecksum: c1767cdd5445fd225d66946afeec5bd5
-
 pnpmfileChecksum: axyiy2aafzw465enw2lqjjjgu4
 
 patchedDependencies:
