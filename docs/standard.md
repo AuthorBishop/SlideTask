@@ -64,7 +64,7 @@ git push
 **规则**：本地开发服务器固定端口，避免每次打开新端口。
 
 **固定端口配置**：
-- **Web 开发服务器**：`http://localhost:3001` — 启动命令 `pnpm start --web`
+- **Web 开发服务器**：`http://localhost:8081` — 启动命令 `pnpm start --web`（Metro Bundler 默认端口，最稳定）
 
 **操作规范**：
 1. 启动 dev server 前，检查端口是否被占用，若被占用则先终止旧进程
@@ -104,7 +104,7 @@ pnpm start --web
 pnpm start --web
 ```
 
-服务器默认运行在 `http://localhost:3001`。
+服务器默认运行在 `http://localhost:8081`（Metro Bundler 默认端口）。
 
 ---
 
@@ -127,7 +127,24 @@ Get-Content _metro.log
 | `Cannot find module '@babel/plugin-transform-react-jsx'` | pnpm 严格依赖解析导致缺失传递依赖 | `pnpm add -D @babel/plugin-transform-react-jsx` |
 | `TypeError: The "to" argument must be of type string` | `typedRoutes: true` 与 Node 22 不兼容 | 在 `app.json` 中设置 `"typedRoutes": false` |
 
-### 6.2 关键配置项检查
+### 6.2 JSX 语法完整性检查（最常见白屏原因）
+
+**JSX 语法错误（如重复代码块、多余闭合标签）是白屏最常见原因，Metro 编译可能不报错！**
+
+排查方法：
+```powershell
+# 查看最近修改的文件
+git diff HEAD~1 --name-only
+
+# 逐个检查最近修改的 .tsx 文件的 JSX 结构
+# 重点排查：onPress 回调后是否有多余代码块、是否有多余的 }} 或 </Tag>
+```
+
+预防规则：
+- 使用 `replace_in_file` 修改 JSX 文件后，必须用 `read_file` 回读修改区域确认语法完整性
+- 绝对不能留下重复代码块或不匹配的闭合标签
+
+### 6.3 关键配置项检查
 
 **app.json**：
 - `experiments.typedRoutes` 必须为 `false`（Node 22 兼容性）
@@ -139,7 +156,7 @@ Get-Content _metro.log
 - 不要使用远程字体加载（如百度 CDN 的 `Glow Sans SC`），会阻塞渲染
 - 字体应使用本地资源或 expo-font 内置字体
 
-### 6.3 缓存清理
+### 6.4 缓存清理
 
 如果以上检查都正常但仍白屏，执行完整缓存清理：
 
@@ -179,7 +196,7 @@ miaoda-expo-devkit/babel-preset
 3. **执行修改**：使用 `replace_in_file` 进行精确修改
 4. **验证启动**：确认 `pnpm start --web` 能正常启动且无白屏
 5. **Git 提交**：`git add` → `git commit` → `git push`（见第二章）
-6. **预览验证**：在 IDE 右侧预览面板刷新 `http://localhost:3001` 确认效果
+6. **预览验证**：在 IDE 右侧预览面板刷新 `http://localhost:8081` 确认效果
 7. **输出总结**：向用户汇报调试总结（见第三章）
 
 ---
@@ -189,7 +206,7 @@ miaoda-expo-devkit/babel-preset
 - **Node 22 + typedRoutes**：`expo-router` 的 `typedRoutes` 实验功能在 Node 22 下有兼容性问题，必须关闭
 - **pnpm 严格模式**：部分 Babel 插件需要显式安装，不能依赖传递提升
 - **远程字体**：`expo-font` 加载远程字体（如 CDN）可能阻塞首屏渲染，建议使用本地字体
-- **端口**：Web 开发服务器默认端口 3001，如被占用会自动递增
+- **端口**：Web 开发服务器固定端口 8081（Metro Bundler 默认端口），不会被其他进程占用
 
 ---
 

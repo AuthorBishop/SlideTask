@@ -25,11 +25,13 @@ interface TaskCardProps {
 }
 
 const LABEL_MAX_WIDTH = 80;
-const TRACK_HEIGHT = 8;
-const NODE_DOT_R = 6;
-const HANDLE_SIZE = 18;
-const LABEL_ROWS = 2; // 文字支持2行自适应
-const LABEL_MARGIN = 16; // 增大节点标签上下间距（8→16），防止误触
+const TRACK_HEIGHT = 15; // 轨道高度（压缩）
+const NODE_DOT_R = 12;
+const HANDLE_SIZE = 26;
+const LABEL_ROWS = 2; // 节点文字2行，完整展示不截断
+const LABEL_DOT_GAP = 0; // 上方节点标签到圆点的间距
+const LABEL_MARGIN = -10; // 标签区域边距
+const TRACK_GAP = 10; // 下方节点标签到轨道的间距（使上下视觉间距一致：NODE_DOT_R + TRACK_GAP - TRACK_HEIGHT/2 ≈ LABEL_DOT_GAP）
 
 
 
@@ -42,9 +44,10 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
 
   const { fontSize: LABEL_FONT_SIZE } = useFontSize();
   const { showConfirm } = useConfirm();
+  const TITLE_FONT_SIZE = LABEL_FONT_SIZE + 4; // 标题比节点标签大4号
   const LINE_HEIGHT = LABEL_FONT_SIZE + 5;
-  const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
-  const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN;
+  const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
+  const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
 
   const [progress, setProgress] = useState(task.progress_position);
   const [barWidth, setBarWidth] = useState(0);
@@ -79,25 +82,64 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
     [task.id]
   );
 
-  // ── 拖动手势 ──
-  // minDist=0：Web 端鼠标按下即拖，无激活死区
-  // activateAfterLongPress=0：无需长按等待
-  // failOffsetY=[-10,10]：允许小幅纵向偏移（避免滚动冲突）
+  // ── 防误触拖动手势（多层检测机制）──
+  //
+  // 检测逻辑设计：
+  // 1. 长按激活 (activateAfterLongPress=150ms)：快速轻触/滑动不会激活拖拽，
+  //    只有持续按住 150ms 后才进入拖拽模式。过滤掉滚动过程中的短暂误触。
+  // 2. 单点触控 (maxPointers=1)：超过一根手指接触时立即拒绝，防止多指误操作。
+  // 3. 垂直偏移失败 (failOffsetY=[-12,12])：纵向偏移超过 12px 判定为滚动意图，
+  //    手势自动失败，避免上下滚动时误拖进度。
+  // 4. 方向占优检测 (manual)：在 onBegin 中计算初始移动方向，若纵向位移
+  //    显著大于横向（纵/横 > 1.5），视为滚动而非拖拽，拒绝激活。
   const startX = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+  const handleScale = useSharedValue(1);
+
+  // 方向占优：记录 onBegin 时的初始位移用于判定意图
+  const initialTranslation = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
   const panGesture = Gesture.Pan()
-    .activateAfterLongPress(0)
-    .minDistance(0)
-    .failOffsetY([-10, 10])
+    .activateAfterLongPress(150)    // ① 150ms 长按激活（核心防误触）
+    .maxPointers(1)                  // ② 禁止多点触控
+    .failOffsetY([-12, 12])         // ③ 纵向偏移超 12px → 滚动意图 → 手势失败
+    .onBegin((e) => {
+      // ④ 方向占优判定：纵向位移 > 横向的 1.5 倍 → 认为是滚动
+      initialTranslation.current = { x: e.translationX, y: e.translationY };
+      const absX = Math.abs(e.translationX);
+      const absY = Math.abs(e.translationY);
+      if (absY > absX * 1.5 && absY > 6) {
+        // 纵向意图明显，阻止本次拖拽（通过后续 onUpdate 忽略）
+        return;
+      }
+    })
     .onStart(() => {
+      'worklet';
+      isDragging.value = true;
+      handleScale.value = 1.25; // 略放大，视觉反馈"已抓取"
       startX.value = dragProgress.value * barWidth;
     })
     .onUpdate((e) => {
+      'worklet';
       if (barWidth <= 0) return;
+      // 二次确认：onBegin 判定为滚动的，onUpdate 中直接忽略
+      if (Math.abs(e.translationY) > Math.abs(e.translationX) * 1.5
+          && Math.abs(e.translationY) > 6) {
+        return;
+      }
       const newX = Math.max(0, Math.min(barWidth, startX.value + e.translationX));
       dragProgress.value = newX / barWidth;
     })
     .onEnd(() => {
+      'worklet';
+      isDragging.value = false;
+      handleScale.value = 1;
       runOnJS(saveProgress)(dragProgress.value);
+    })
+    .onFinalize(() => {
+      'worklet';
+      isDragging.value = false;
+      handleScale.value = 1;
     });
 
   const fillStyle = useAnimatedStyle(() => ({
@@ -113,6 +155,11 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
       marginLeft: marginLeftPx,
     };
   });
+
+  // 把手抓取时的缩放反馈（防误触机制：只有真正激活拖动时才放大）
+  const handleScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: handleScale.value }],
+  }));
 
   const saveNodeTitle = useCallback(async () => {
     if (!editingNodeId || !editingText.trim()) {
@@ -143,7 +190,10 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   const TRACK_CENTER_Y = ABOVE_HEIGHT + NODE_DOT_R;
   const DOT_TOP = TRACK_CENTER_Y - NODE_DOT_R;
   const TRACK_TOP = TRACK_CENTER_Y - TRACK_HEIGHT / 2;
-  const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + 8 + BELOW_HEIGHT;
+  // 多节点：上方标签 + 圆点 + 轨道 + 间距 + 下方标签
+  const CONTAINER_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R * 2 + TRACK_HEIGHT + TRACK_GAP + BELOW_HEIGHT;
+  // 单节点：无需下方标签空间，紧凑布局
+  const SINGLE_NODE_HEIGHT = ABOVE_HEIGHT + NODE_DOT_R + TRACK_HEIGHT + 4;
 
   const bgColor = hexToRgba(color, 0.08);
 
@@ -168,18 +218,20 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   return (
     <View
       style={{ borderCurve: 'continuous', backgroundColor: bgColor, borderRadius: 16 }}
-      className="px-4 pt-3 pb-3 mb-3"
+      className="px-4 py-5 pb-5 mb-5"
     >
       {/* ── 任务标题行 ── */}
-      <View className="flex-row items-start mb-2">
+      <View className="flex-row items-end" style={{ marginBottom: 2 }}>
         <Text
-          className="text-sm font-sans text-foreground flex-shrink"
+          style={{ fontSize: TITLE_FONT_SIZE, fontFamily: 'System', fontWeight: '600', color: '#1F2937', lineHeight: TITLE_FONT_SIZE + 2 }}
+          className="flex-shrink"
         >
           {task.title}
         </Text>
         {note.trim() !== '' && (
           <Text
             className="text-xs font-sans text-muted-foreground ml-2 flex-1"
+            style={{ lineHeight: TITLE_FONT_SIZE + 2 }}
           >
             {note.trim()}
           </Text>
@@ -196,7 +248,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
 
       {/* ── 进度条容器 ── */}
       <View
-        style={{ height: CONTAINER_HEIGHT, position: 'relative' }}
+        style={{ height: nodeCount === 1 ? SINGLE_NODE_HEIGHT : CONTAINER_HEIGHT, position: 'relative' }}
         onLayout={onBarLayout}
       >
         {/* ── 第1层：进度条轨道（最底层，纯视觉）── */}
@@ -315,8 +367,8 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   width: NODE_DOT_R * 2,
                   height: NODE_DOT_R * 2,
                   borderRadius: NODE_DOT_R,
-                  borderWidth: 2,
-                  borderColor: isCompleted ? color : '#E5E7EB',
+                  borderWidth: 3,
+                  borderColor: isCompleted ? 'rgba(0,0,0,0.15)' : '#D1D5DB',
                   backgroundColor: isCompleted ? color : '#FFFFFF',
                 }}
               />
@@ -329,7 +381,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   width: dynamicMaxWidth,
                   ...(isAbove
                     ? { top: 0, justifyContent: 'flex-end', height: ABOVE_HEIGHT }
-                    : { top: TRACK_CENTER_Y + NODE_DOT_R + 2, height: BELOW_HEIGHT }),
+                    : { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, height: BELOW_HEIGHT }),
                 }}
               >
                 {isEditing ? (
@@ -399,6 +451,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   zIndex: 10,
                 },
                 handlePositionStyle,
+                handleScaleStyle,
               ]}
             >
               {/* 把手内芯（实心色圆） */}
