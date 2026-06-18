@@ -1,0 +1,22 @@
+# Force LF line endings for cross-platform compatibility (EAS builds on Linux)
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.webp binary
+*.apk binary
+
+# Patch files must use LF for hash compatibility with Linux
+*.patch text eol=lf diff
+
+# Lockfile must use LF
+pnpm-lock.yaml text eol=lf
