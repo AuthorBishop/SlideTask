@@ -28,10 +28,10 @@ const LABEL_MAX_WIDTH = 80;
 const TRACK_HEIGHT = 15; // 轨道高度（压缩）
 const NODE_DOT_R = 12;
 const HANDLE_SIZE = 26;
-const LABEL_ROWS = 2; // 节点文字2行，完整展示不截断
+const LABEL_ROWS = 2; // 节点文字行数（显示截断2行，编辑时展示2行）
 const LABEL_DOT_GAP = 0; // 上方节点标签到圆点的间距
-const LABEL_MARGIN = -10; // 标签区域边距
-const TRACK_GAP = 10; // 下方节点标签到轨道的间距（使上下视觉间距一致：NODE_DOT_R + TRACK_GAP - TRACK_HEIGHT/2 ≈ LABEL_DOT_GAP）
+const LABEL_MARGIN = 0; // 标签区域边距（去掉，压缩高度）
+const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上方视觉一致）
 
 
 
@@ -47,6 +47,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   const TITLE_FONT_SIZE = LABEL_FONT_SIZE + 4; // 标题比节点标签大4号
   const LINE_HEIGHT = LABEL_FONT_SIZE + 5;
   const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
+  // 下方标签：与上方高度一致
   const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
 
   const [progress, setProgress] = useState(task.progress_position);
@@ -82,35 +83,34 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
     [task.id]
   );
 
-  // ── 防误触拖动手势（多层检测机制）──
+  // ── 手动激活拖动手势（方向意图实时判定）──
   //
   // 检测逻辑设计：
-  // 1. 长按激活 (activateAfterLongPress=150ms)：快速轻触/滑动不会激活拖拽，
-  //    只有持续按住 150ms 后才进入拖拽模式。过滤掉滚动过程中的短暂误触。
-  // 2. 单点触控 (maxPointers=1)：超过一根手指接触时立即拒绝，防止多指误操作。
-  // 3. 垂直偏移失败 (failOffsetY=[-12,12])：纵向偏移超过 12px 判定为滚动意图，
-  //    手势自动失败，避免上下滚动时误拖进度。
-  // 4. 方向占优检测 (manual)：在 onBegin 中计算初始移动方向，若纵向位移
-  //    显著大于横向（纵/横 > 1.5），视为滚动而非拖拽，拒绝激活。
+  // 1. 手动激活 (manualActivation)：触摸后不自动激活，由 onTouchesMove 实时判定意图。
+  // 2. 单点触控 (maxPointers=1)：超过一根手指时立即拒绝。
+  // 3. 方向意图判定 (onTouchesMove)：
+  //    - 横向位移 > 8px 且横向 > 纵向 → 立即激活拖拽（零延迟响应）
+  //    - 纵向位移 > 8px 且纵向 > 横向 → 判定为滚动意图，手势失败释放
+  //    - 位移不足 8px 时持续等待，谁先越过阈值按谁执行
   const startX = useSharedValue(0);
   const isDragging = useSharedValue(false);
   const handleScale = useSharedValue(1);
 
-  // 方向占优：记录 onBegin 时的初始位移用于判定意图
-  const initialTranslation = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
   const panGesture = Gesture.Pan()
-    .activateAfterLongPress(150)    // ① 150ms 长按激活（核心防误触）
+    .manualActivation()             // ① 手动激活：由 onTouchesMove 控制激活/失败
     .maxPointers(1)                  // ② 禁止多点触控
-    .failOffsetY([-12, 12])         // ③ 纵向偏移超 12px → 滚动意图 → 手势失败
-    .onBegin((e) => {
-      // ④ 方向占优判定：纵向位移 > 横向的 1.5 倍 → 认为是滚动
-      initialTranslation.current = { x: e.translationX, y: e.translationY };
+    .onTouchesMove((e, stateManager) => {
+      'worklet';
+      // ③ 方向意图判定：根据起始位移方向决定激活拖拽还是放弃（交给 ScrollView）
       const absX = Math.abs(e.translationX);
       const absY = Math.abs(e.translationY);
-      if (absY > absX * 1.5 && absY > 6) {
-        // 纵向意图明显，阻止本次拖拽（通过后续 onUpdate 忽略）
-        return;
+      // 横向先越过阈值且占优 → 拖拽意图
+      if (absX > 8 && absX > absY) {
+        stateManager.activate();
+      }
+      // 纵向先越过阈值且占优 → 滚动意图 → 释放手势
+      else if (absY > 8 && absY > absX) {
+        stateManager.fail();
       }
     })
     .onStart(() => {
@@ -122,11 +122,6 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
     .onUpdate((e) => {
       'worklet';
       if (barWidth <= 0) return;
-      // 二次确认：onBegin 判定为滚动的，onUpdate 中直接忽略
-      if (Math.abs(e.translationY) > Math.abs(e.translationX) * 1.5
-          && Math.abs(e.translationY) > 6) {
-        return;
-      }
       const newX = Math.max(0, Math.min(barWidth, startX.value + e.translationX));
       dragProgress.value = newX / barWidth;
     })
@@ -218,10 +213,10 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   return (
     <View
       style={{ borderCurve: 'continuous', backgroundColor: bgColor, borderRadius: 16 }}
-      className="px-4 py-5 pb-5 mb-5"
+      className="px-4 py-4 mb-4"
     >
       {/* ── 任务标题行 ── */}
-      <View className="flex-row items-end" style={{ marginBottom: 2 }}>
+      <View className="flex-row items-end" style={{ marginBottom: 0 }}>
         <Text
           style={{ fontSize: TITLE_FONT_SIZE, fontFamily: 'System', fontWeight: '600', color: '#1F2937', lineHeight: TITLE_FONT_SIZE + 2 }}
           className="flex-shrink"
@@ -236,11 +231,25 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             {note.trim()}
           </Text>
         )}
-        {/* 完成按钮（右上角打勾） */}
+        {/* 右上角：详情按钮 */}
+        <Pressable
+          onPress={() => onOpenDetail(task.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="px-2.5 py-0.5 rounded-full"
+          style={{ backgroundColor: `${color}18`, marginLeft: 8 }}
+        >
+          <Text
+            className="text-xs font-sans font-medium"
+            style={{ color }}
+          >
+            详情
+          </Text>
+        </Pressable>
+        {/* 完成按钮（打勾） */}
         <Pressable
           onPress={handleComplete}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{ marginLeft: 12 }}
+          style={{ marginLeft: 8 }}
         >
           <CheckCircle size={18} color="#9CA3AF" />
         </Pressable>
@@ -287,39 +296,70 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
               key={node.id}
               style={{
                 position: 'absolute',
-                top: 0,
                 left: 0,
-                height: ABOVE_HEIGHT,
-                justifyContent: 'flex-end',
                 maxWidth: barWidth,
+                // zIndex:5 介于轨道(0)与拖动把手(10)之间，避免编辑态被手柄覆盖
+                zIndex: isEditing ? 6 : 1,
+                elevation: isEditing ? 6 : 1,
+                // 非编辑：固定高度贴在轨道上方；编辑：以圆点上方为底边向上自适应展开
+                ...(isEditing
+                  ? { bottom: SINGLE_NODE_HEIGHT - ABOVE_HEIGHT, justifyContent: 'flex-end' }
+                  : { top: 0, height: ABOVE_HEIGHT, justifyContent: 'flex-end' }),
               }}
             >
               {isEditing ? (
-                <TextInput
-                  ref={editInputRef}
-                  value={editingText}
-                  onChangeText={setEditingText}
-                  onBlur={saveNodeTitle}
-                  onSubmitEditing={saveNodeTitle}
-                  returnKeyType="done"
-                  style={{
-                    fontSize: LABEL_FONT_SIZE,
-                    color: '#374151',
-                    borderBottomWidth: 1,
-                    borderBottomColor: color,
-                    paddingBottom: 1,
-                    fontFamily: 'System',
-                    minWidth: 60,
-                  }}
-                  autoFocus
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                  <TextInput
+                    ref={editInputRef}
+                    value={editingText}
+                    onChangeText={setEditingText}
+                    onBlur={saveNodeTitle}
+                    onSubmitEditing={saveNodeTitle}
+                    returnKeyType="done"
+                    multiline
+                    style={{
+                      flex: 1,
+                      fontSize: LABEL_FONT_SIZE,
+                      lineHeight: LINE_HEIGHT,
+                      color: '#374151',
+                      borderBottomWidth: 1,
+                      borderBottomColor: color,
+                      paddingBottom: 1,
+                      fontFamily: 'System',
+                      paddingVertical: 0,
+                      paddingHorizontal: 0,
+                      includeFontPadding: false,
+                      // 自适应高度：至少一行，最多4行（超出滚动），取消固定两行限制
+                      minHeight: LINE_HEIGHT,
+                      maxHeight: LINE_HEIGHT * 4,
+                      textAlignVertical: 'top',
+                    }}
+                    autoFocus
+                  />
+                  <Pressable
+                    onPress={saveNodeTitle}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{
+                      marginLeft: 8,
+                      width: 30,
+                      height: 30,
+                      borderRadius: 15,
+                      backgroundColor: '#F1F5F9',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {/* 浅灰圆底 + 透明外圆 + 彩色勾，确保勾轮廓清晰、对比度高 */}
+                    <CheckCircle size={20} color={color} fill="transparent" strokeWidth={2.5} />
+                  </Pressable>
+                </View>
               ) : (
                 <Pressable
                   onPress={(e) => { e.stopPropagation?.(); startEditNode(node.id, displayTitle); }}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text
-                    style={{ fontSize: LABEL_FONT_SIZE, color, fontFamily: 'System', fontWeight: '500' }}
+                    style={{ fontSize: LABEL_FONT_SIZE, color, fontFamily: 'System', fontWeight: '500', lineHeight: LINE_HEIGHT }}
                     numberOfLines={LABEL_ROWS}
                   >
                     {displayTitle}
@@ -378,30 +418,66 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                 style={{
                   position: 'absolute',
                   left: labelLeft,
-                  width: dynamicMaxWidth,
+                  width: isEditing ? Math.max(dynamicMaxWidth, 200) : dynamicMaxWidth,
+                  // 编辑态提升到 Layer 3 (手柄) 之上，避免输入框被拖动手柄覆盖
+                  zIndex: isEditing ? 20 : 1,
+                  elevation: isEditing ? 20 : 1,
+                  // 非编辑：固定高度；编辑：自适应——上方标签向上展开，下方标签向下展开
                   ...(isAbove
-                    ? { top: 0, justifyContent: 'flex-end', height: ABOVE_HEIGHT }
-                    : { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, height: BELOW_HEIGHT }),
+                    ? (isEditing
+                        ? { bottom: CONTAINER_HEIGHT - ABOVE_HEIGHT, justifyContent: 'flex-end' }
+                        : { top: 0, height: ABOVE_HEIGHT, justifyContent: 'flex-end' })
+                    : (isEditing
+                        ? { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, justifyContent: 'flex-start' }
+                        : { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, height: BELOW_HEIGHT, justifyContent: 'flex-start' })),
                 }}
               >
                 {isEditing ? (
-                  <TextInput
-                    ref={editInputRef}
-                    value={editingText}
-                    onChangeText={setEditingText}
-                    onBlur={saveNodeTitle}
-                    onSubmitEditing={saveNodeTitle}
-                    returnKeyType="done"
-                    style={{
-                      fontSize: LABEL_FONT_SIZE,
-                      color: '#374151',
-                      borderBottomWidth: 1,
-                      borderBottomColor: color,
-                      paddingBottom: 1,
-                      fontFamily: 'System',
-                    }}
-                    autoFocus
-                  />
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                    <TextInput
+                      ref={editInputRef}
+                      value={editingText}
+                      onChangeText={setEditingText}
+                      onBlur={saveNodeTitle}
+                      onSubmitEditing={saveNodeTitle}
+                      returnKeyType="done"
+                      multiline
+                      style={{
+                        flex: 1,
+                        fontSize: LABEL_FONT_SIZE,
+                        lineHeight: LINE_HEIGHT,
+                        color: '#374151',
+                        borderBottomWidth: 1,
+                        borderBottomColor: color,
+                        paddingBottom: 1,
+                        fontFamily: 'System',
+                        paddingVertical: 0,
+                        paddingHorizontal: 0,
+                        includeFontPadding: false,
+                        // 自适应高度：至少一行，最多4行（超出滚动），取消固定两行限制
+                        minHeight: LINE_HEIGHT,
+                        maxHeight: LINE_HEIGHT * 4,
+                        textAlignVertical: 'top',
+                      }}
+                      autoFocus
+                    />
+                    <Pressable
+                      onPress={saveNodeTitle}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{
+                        marginLeft: 8,
+                        width: 30,
+                        height: 30,
+                        borderRadius: 15,
+                        backgroundColor: '#F1F5F9',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {/* 浅灰圆底 + 透明外圆 + 彩色勾，确保勾轮廓清晰、对比度高 */}
+                      <CheckCircle size={20} color={color} fill="transparent" strokeWidth={2.5} />
+                    </Pressable>
+                  </View>
                 ) : (
                   <Pressable
                     onPress={(e) => { e.stopPropagation?.(); startEditNode(node.id, displayTitle); }}
@@ -410,6 +486,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                     <Text
                       style={{
                         fontSize: LABEL_FONT_SIZE,
+                        lineHeight: LINE_HEIGHT,
                         color: isCompleted ? color : '#9CA3AF',
                         fontFamily: 'System',
                         fontWeight: isCompleted ? '500' : '400',
@@ -468,22 +545,6 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
         )}
       </View>
 
-      {/* ── 右下角详情按钮 ── */}
-      <View className="flex-row justify-end mt-2">
-        <Pressable
-          onPress={() => onOpenDetail(task.id)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          className="px-3 py-1 rounded-full"
-          style={{ backgroundColor: `${color}18` }}
-        >
-          <Text
-            className="text-xs font-sans font-medium"
-            style={{ color }}
-          >
-            详情
-          </Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
