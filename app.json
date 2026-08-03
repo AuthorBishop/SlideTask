@@ -5,6 +5,7 @@
     "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "taskflow",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -31,9 +32,6 @@
       "expo-font",
       "expo-system-ui"
     ],
-    "router": {
-      "root": "src"
-    },
     "experiments": {
       "typedRoutes": false
     },

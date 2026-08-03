@@ -129,7 +129,11 @@ export default function CreateTaskModal({ visible, onClose, onCreated }: CreateT
             },
           ]}
         >
-          <KeyboardAvoidingView behavior="padding">
+          <KeyboardAvoidingView
+            behavior="height"
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={0}
+          >
             {/* 顶部把手 */}
             <View className="items-center pt-3 pb-1">
               <View className="w-10 h-1 rounded-full bg-border" />
@@ -147,7 +151,7 @@ export default function CreateTaskModal({ visible, onClose, onCreated }: CreateT
 
             <ScrollView
               className="px-5"
-              contentContainerStyle={{ paddingBottom: 32 }}
+              contentContainerStyle={{ paddingBottom: 16 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -251,19 +255,24 @@ export default function CreateTaskModal({ visible, onClose, onCreated }: CreateT
                   {errorMsg}
                 </Text>
               )}
+            </ScrollView>
 
-              {/* 创建按钮 */}
+            {/* 创建按钮（固定在底部，键盘弹起时始终可见） */}
+            <View
+              style={{ paddingBottom: 8, paddingTop: 12 }}
+              className="px-5 border-t border-border/40 bg-white"
+            >
               <Pressable
                 onPress={handleCreate}
                 disabled={saving}
-                className="w-full rounded-2xl py-4 mt-2 items-center"
+                className="w-full rounded-2xl py-4 items-center"
                 style={{ backgroundColor: selectedColor, opacity: saving ? 0.7 : 1 }}
               >
                 <Text className="text-base font-glow-sans-sc text-white font-medium">
                   {saving ? '创建中…' : '创建任务'}
                 </Text>
               </Pressable>
-            </ScrollView>
+            </View>
           </KeyboardAvoidingView>
         </Animated.View>
       </View>
