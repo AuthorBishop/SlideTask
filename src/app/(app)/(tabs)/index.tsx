@@ -15,6 +15,7 @@ import { TaskWithNodes } from '@/types/types';
 import TaskCard from '@/components/tasks/TaskCard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
+import DemoTaskCard from '@/components/tasks/DemoTaskCard';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
 
 export default function HomeScreen() {
@@ -38,6 +39,18 @@ export default function HomeScreen() {
   const handleOnboardingComplete = useCallback(async () => {
     await setSetting('onboarding_completed', '1');
     setShowOnboarding(false);
+  }, []);
+
+  // 示例任务：检查 hide_demo 设置，true=已隐藏
+  const [hideDemo, setHideDemo] = useState(false);
+
+  useEffect(() => {
+    getSetting('hide_demo').then((v) => { if (v === '1') setHideDemo(true); });
+  }, []);
+
+  const handleDismissDemo = useCallback(async () => {
+    await setSetting('hide_demo', '1');
+    setHideDemo(true);
   }, []);
 
   const loadTasks = useCallback(async () => {
@@ -127,20 +140,40 @@ export default function HomeScreen() {
             />
           )}
           ListEmptyComponent={
-            <View className="items-center justify-center pt-24 px-8">
-              <View
-                className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                style={{ backgroundColor: '#F8F9FB' }}
-              >
-                <Text style={{ fontSize: 28 }}>✦</Text>
+            !hideDemo ? (
+              <View>
+                <DemoTaskCard onDismiss={handleDismissDemo} />
+                <View className="items-center justify-center pt-6">
+                  <View
+                    className="w-16 h-16 rounded-full items-center justify-center mb-4"
+                    style={{ backgroundColor: '#F8F9FB' }}
+                  >
+                    <Text style={{ fontSize: 28 }}>✧</Text>
+                  </View>
+                  <Text className="text-base font-glow-sans-sc text-foreground text-center mb-1">
+                    暂无任务
+                  </Text>
+                  <Text className="text-sm font-glow-sans-sc text-muted-foreground text-center">
+                    点击右下角 + 创建第一个任务
+                  </Text>
+                </View>
               </View>
-              <Text className="text-base font-glow-sans-sc text-foreground text-center mb-1">
-                暂无任务
-              </Text>
-              <Text className="text-sm font-glow-sans-sc text-muted-foreground text-center">
-                点击右下角 + 创建第一个任务
-              </Text>
-            </View>
+            ) : (
+              <View className="items-center justify-center pt-24 px-8">
+                <View
+                  className="w-16 h-16 rounded-full items-center justify-center mb-4"
+                  style={{ backgroundColor: '#F8F9FB' }}
+                >
+                  <Text style={{ fontSize: 28 }}>✧</Text>
+                </View>
+                <Text className="text-base font-glow-sans-sc text-foreground text-center mb-1">
+                  暂无任务
+                </Text>
+                <Text className="text-sm font-glow-sans-sc text-muted-foreground text-center">
+                  点击右下角 + 创建第一个任务
+                </Text>
+              </View>
+            )
           }
         />
       )}
