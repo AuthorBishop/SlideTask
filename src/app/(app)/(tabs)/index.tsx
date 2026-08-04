@@ -8,7 +8,16 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Plus, Type } from 'lucide-react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { fetchTasksWithNodes } from '@/db/api';
 import { getSetting, setSetting } from '@/lib/database';
 import { TaskWithNodes } from '@/types/types';
@@ -17,6 +26,8 @@ import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import DemoTaskCard from '@/components/tasks/DemoTaskCard';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -52,6 +63,49 @@ export default function HomeScreen() {
     await setSetting('hide_demo', '1');
     setHideDemo(true);
   }, []);
+
+  // CTA 脉冲动画：无真实任务且未隐藏示例 → 延时 5 秒开始脉冲
+  const canPulse = tasks.length === 0 && !hideDemo;
+  const [pulseActive, setPulseActive] = useState(false);
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (canPulse) {
+      const timer = setTimeout(() => setPulseActive(true), 5000);
+      return () => clearTimeout(timer);
+    }
+    setPulseActive(false);
+  }, [canPulse]);
+
+  useEffect(() => {
+    if (pulseActive) {
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.12, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+      pulseOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.65, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      pulseScale.value = withTiming(1);
+      pulseOpacity.value = withTiming(1);
+    }
+  }, [pulseActive]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
+  }));
 
   const loadTasks = useCallback(async () => {
     try {
@@ -217,24 +271,27 @@ export default function HomeScreen() {
         </Text>
       </Pressable>
 
-      {/* 新建任务浮动按钮 */}
-      <Pressable
+      {/* 新建任务浮动按钮（带脉冲动画） */}
+      <AnimatedPressable
         onPress={() => setShowCreate(true)}
-        style={{
-          position: 'absolute',
-          bottom: 36,
-          right: 24,
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          backgroundColor: '#111827',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: [{ offsetX: 0, offsetY: 4, blurRadius: 16, color: 'rgba(17,24,39,0.18)' }],
-        }}
+        style={[
+          pulseStyle,
+          {
+            position: 'absolute',
+            bottom: 36,
+            right: 24,
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: '#111827',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: [{ offsetX: 0, offsetY: 4, blurRadius: 16, color: 'rgba(17,24,39,0.18)' }],
+          },
+        ]}
       >
         <Plus size={22} color="#FFFFFF" strokeWidth={2} />
-      </Pressable>
+      </AnimatedPressable>
 
       {/* 新建任务弹窗 */}
       <CreateTaskModal
