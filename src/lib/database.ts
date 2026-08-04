@@ -58,5 +58,32 @@ export const dbReady: Promise<SQLite.SQLiteDatabase> = (async () => {
     await db.execAsync(`ALTER TABLE tasks ADD COLUMN completed_at TEXT`);
   }
 
+  // settings 键值表：onboarding_completed / hide_demo 等
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+
   return db;
 })();
+
+/** 读取设置项，不存在返回 null */
+export async function getSetting(key: string): Promise<string | null> {
+  const db = await dbReady;
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM settings WHERE key = ?`,
+    [key]
+  );
+  return row?.value ?? null;
+}
+
+/** 写入设置项 */
+export async function setSetting(key: string, value: string): Promise<void> {
+  const db = await dbReady;
+  await db.runAsync(
+    `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
+    [key, value]
+  );
+}

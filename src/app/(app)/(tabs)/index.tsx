@@ -1,17 +1,20 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   Text,
   View,
-} from 'react-native';import { useFocusEffect, useRouter } from 'expo-router';
+} from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Plus, Type } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchTasksWithNodes } from '@/db/api';
+import { getSetting, setSetting } from '@/lib/database';
 import { TaskWithNodes } from '@/types/types';
 import TaskCard from '@/components/tasks/TaskCard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
+import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
 
 export default function HomeScreen() {
@@ -20,6 +23,22 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const { level, label, nextLevel } = useFontSize();
+
+  // 引导页状态
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
+  useEffect(() => {
+    getSetting('onboarding_completed').then((val) => {
+      if (val !== '1') setShowOnboarding(true);
+      setOnboardingChecked(true);
+    });
+  }, []);
+
+  const handleOnboardingComplete = useCallback(async () => {
+    await setSetting('onboarding_completed', '1');
+    setShowOnboarding(false);
+  }, []);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -41,6 +60,22 @@ export default function HomeScreen() {
   const handleOpenDetail = (taskId: string) => {
     router.push(`/(app)/task/${taskId}`);
   };
+
+  // 引导页未检查完成 → 加载中
+  if (!onboardingChecked) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color="#6366F1" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // 首次启动 → 显示引导页
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
