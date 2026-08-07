@@ -14,7 +14,17 @@ const DEMO_NODES = [
   { id: 'd3', title: '分配执行', position: 2 },
   { id: 'd4', title: '检查验收', position: 3 },
 ];
-const DEMO_PROGRESS = 0.5; // 4个节点，完成到第2个
+const DEMO_PROGRESS = 0.5; // 4 个节点，进度到第 2 个
+
+const TRACK_HEIGHT = 12;
+const DOT_DIAMETER = 20;
+const DOT_RADIUS = DOT_DIAMETER / 2;
+const CONTAINER_HEIGHT = 90;
+const TRACK_CENTER_Y = CONTAINER_HEIGHT / 2;
+const TRACK_TOP = TRACK_CENTER_Y - TRACK_HEIGHT / 2;
+const DOT_TOP = TRACK_CENTER_Y - DOT_RADIUS;
+const ABOVE_BOTTOM = DOT_TOP - 6;
+const BELOW_TOP = DOT_TOP + DOT_DIAMETER + 6;
 
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
@@ -46,7 +56,12 @@ export default function DemoTaskCard({ onDismiss }: DemoTaskCardProps) {
       {/* 标题行 + 消除按钮 */}
       <View className="flex-row items-center justify-between mb-4">
         <Text
-          style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', fontFamily: 'System' }}
+          style={{
+            fontSize: 16,
+            fontWeight: '600',
+            color: '#1F2937',
+            fontFamily: 'System',
+          }}
         >
           {DEMO_TITLE}
         </Text>
@@ -60,72 +75,133 @@ export default function DemoTaskCard({ onDismiss }: DemoTaskCardProps) {
         </Pressable>
       </View>
 
-      {/* 进度条 */}
-      <View style={{ height: 48, justifyContent: 'center' }}>
-        {/* 轨道 */}
-        <View
-          style={{
-            height: 12,
-            backgroundColor: '#E8E8ED',
-            borderRadius: 6,
-            overflow: 'hidden',
-          }}
-        >
-          {/* 填充 */}
-          <View
-            style={{
-              width: `${DEMO_PROGRESS * 100}%`,
-              height: 12,
-              backgroundColor: DEMO_COLOR,
-              borderRadius: 6,
-            }}
-          />
-        </View>
-
-        {/* 节点圆点 + 标签 */}
+      {/* 进度条 + 节点区域 */}
+      <View style={{ height: CONTAINER_HEIGHT }}>
+        {/* 上方标签 */}
         {DEMO_NODES.map((node, i) => {
           const pos = i * (1 / (nodeCount - 1));
           const completed = pos <= DEMO_PROGRESS + 0.001;
           const isFirst = i === 0;
           const isLast = i === nodeCount - 1;
-          const dotSize = 20;
+          const isAbove = i % 2 === 0;
+          if (!isAbove) return null;
 
           return (
-            <View key={node.id}>
-              {/* 圆点 */}
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -4, // aligned: center of 12px track = 6px, dot center = 10px
-                  ...(isFirst
-                    ? { left: -dotSize / 2 }
-                    : isLast
-                    ? { right: -dotSize / 2 }
-                    : { left: `${pos * 100}%`, marginLeft: -dotSize / 2 }),
-                  width: dotSize,
-                  height: dotSize,
-                  borderRadius: dotSize / 2,
-                  borderWidth: 2.5,
-                  borderColor: completed ? 'rgba(0,0,0,0.15)' : '#D1D5DB',
-                  backgroundColor: completed ? DEMO_COLOR : '#FFFFFF',
-                }}
-              />
-              {/* 标签 */}
+            <View
+              key={`above-${node.id}`}
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: ABOVE_BOTTOM,
+                ...(isFirst
+                  ? { left: 0, width: 80 }
+                  : isLast
+                  ? { right: 0, width: 80 }
+                  : { left: `${pos * 100}%`, width: 80, marginLeft: -40 }),
+                justifyContent: 'flex-end',
+              }}
+            >
               <Text
+                numberOfLines={1}
                 style={{
-                  position: 'absolute',
-                  top: i % 2 === 0 ? -22 : 18,
-                  left: isFirst ? 0 : isLast ? undefined : `${pos * 100}%`,
-                  right: isLast ? 0 : undefined,
-                  width: 64,
-                  marginLeft: isFirst ? 0 : isLast ? 0 : -32,
                   fontSize: 11,
                   color: completed ? DEMO_COLOR : '#9CA3AF',
                   fontWeight: completed ? '500' : '400',
                   fontFamily: 'System',
                   textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
                 }}
+              >
+                {node.title}
+              </Text>
+            </View>
+          );
+        })}
+
+        {/* 轨道 */}
+        <View
+          style={{
+            position: 'absolute',
+            top: TRACK_TOP,
+            left: 0,
+            right: 0,
+            height: TRACK_HEIGHT,
+            backgroundColor: '#E5E7EB',
+            borderRadius: TRACK_HEIGHT / 2,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              width: `${DEMO_PROGRESS * 100}%`,
+              height: TRACK_HEIGHT,
+              backgroundColor: DEMO_COLOR,
+              borderRadius: TRACK_HEIGHT / 2,
+            }}
+          />
+        </View>
+
+        {/* 节点圆点 */}
+        {DEMO_NODES.map((node, i) => {
+          const pos = i * (1 / (nodeCount - 1));
+          const completed = pos <= DEMO_PROGRESS + 0.001;
+          const isFirst = i === 0;
+          const isLast = i === nodeCount - 1;
+
+          return (
+            <View
+              key={`dot-${node.id}`}
+              style={{
+                position: 'absolute',
+                top: DOT_TOP,
+                width: DOT_DIAMETER,
+                height: DOT_DIAMETER,
+                borderRadius: DOT_RADIUS,
+                borderWidth: 2.5,
+                borderColor: completed ? DEMO_COLOR : '#D1D5DB',
+                backgroundColor: completed ? DEMO_COLOR : '#FFFFFF',
+                ...(isFirst
+                  ? { left: 0 }
+                  : isLast
+                  ? { right: 0 }
+                  : { left: `${pos * 100}%`, marginLeft: -DOT_RADIUS }),
+              }}
+            />
+          );
+        })}
+
+        {/* 下方标签 */}
+        {DEMO_NODES.map((node, i) => {
+          const pos = i * (1 / (nodeCount - 1));
+          const completed = pos <= DEMO_PROGRESS + 0.001;
+          const isFirst = i === 0;
+          const isLast = i === nodeCount - 1;
+          const isBelow = i % 2 === 1;
+          if (!isBelow) return null;
+
+          return (
+            <View
+              key={`below-${node.id}`}
+              style={{
+                position: 'absolute',
+                top: BELOW_TOP,
+                height: 28,
+                ...(isFirst
+                  ? { left: 0, width: 80 }
+                  : isLast
+                  ? { right: 0, width: 80 }
+                  : { left: `${pos * 100}%`, width: 80, marginLeft: -40 }),
+                justifyContent: 'flex-start',
+              }}
+            >
+              <Text
                 numberOfLines={1}
+                style={{
+                  fontSize: 11,
+                  color: completed ? DEMO_COLOR : '#9CA3AF',
+                  fontWeight: completed ? '500' : '400',
+                  fontFamily: 'System',
+                  textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
+                }}
               >
                 {node.title}
               </Text>
@@ -136,7 +212,7 @@ export default function DemoTaskCard({ onDismiss }: DemoTaskCardProps) {
 
       {/* 说明提示 */}
       <Text
-        className="text-center mt-3"
+        className="text-center mt-2"
         style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'System' }}
       >
         这是示例任务，创建你的第一个任务后会自动消失
