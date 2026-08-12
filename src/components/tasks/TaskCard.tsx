@@ -4,6 +4,7 @@ import {
   Pressable,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -32,6 +33,7 @@ const HANDLE_SIZE = 26;
 const LABEL_ROWS = 3; // 节点文字最多显示3行
 const MIN_LABEL_FONT_SIZE = 12; // 横向受限时忽略放大，收敛到的基准字号
 const NARROW_SLOT_THRESHOLD = 72; // 文字框宽度低于此值视为"横向空间明显受限"
+const NARROW_TITLE_ROW_WIDTH = 380; // 屏幕宽度低于此值（窄屏）时，备注移到标题行下方整行显示（RN 中等价 CSS 媒体查询断点）
 const LABEL_DOT_GAP = 0; // 上方节点标签到圆点的间距
 const LABEL_MARGIN = 0; // 标签区域边距（去掉，压缩高度）
 const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上方视觉一致）
@@ -47,7 +49,10 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
 
   const { fontSize: LABEL_FONT_SIZE } = useFontSize();
   const { showConfirm } = useConfirm();
+  const { width: windowWidth } = useWindowDimensions();
   const TITLE_FONT_SIZE = LABEL_FONT_SIZE + 4; // 标题比节点标签大4号
+  // 窄屏判定（RN 无 CSS 媒体查询，用窗口宽度等价实现）：宽度不足时备注无法与标题/按钮并排
+  const noteOnOwnLine = note.trim() !== '' && windowWidth < NARROW_TITLE_ROW_WIDTH;
 
   const [progress, setProgress] = useState(task.progress_position);
   const [barWidth, setBarWidth] = useState(0);
@@ -235,7 +240,8 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
         >
           {task.title}
         </Text>
-        {note.trim() !== '' && (
+        {/* 备注：横向空间充足时与标题并排（flex-1 填充标题与按钮之间） */}
+        {note.trim() !== '' && !noteOnOwnLine && (
           <Text
             className="text-xs font-sans text-muted-foreground ml-2 flex-1"
             style={{ lineHeight: TITLE_FONT_SIZE + 2 }}
@@ -270,6 +276,16 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
           </Pressable>
         )}
       </View>
+
+      {/* 备注：窄屏时移到详情/打勾按钮下方整行显示，保持文字横向 */}
+      {noteOnOwnLine && (
+        <Text
+          className="text-xs font-sans text-muted-foreground mt-1"
+          style={{ lineHeight: TITLE_FONT_SIZE + 2 }}
+        >
+          {note.trim()}
+        </Text>
+      )}
 
       {/* ── 进度条容器 ── */}
       <View
