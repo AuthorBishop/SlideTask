@@ -22,13 +22,16 @@ interface TaskCardProps {
   task: TaskWithNodes;
   onUpdate: () => void;
   onOpenDetail: (taskId: string) => void;
+  readOnly?: boolean;
 }
 
 const LABEL_MAX_WIDTH = 80;
 const TRACK_HEIGHT = 15; // 轨道高度（压缩）
 const NODE_DOT_R = 12;
 const HANDLE_SIZE = 26;
-const LABEL_ROWS = 2; // 节点文字行数（显示截断2行，编辑时展示2行）
+const LABEL_ROWS = 3; // 节点文字最多显示3行
+const MIN_LABEL_FONT_SIZE = 12; // 横向受限时忽略放大，收敛到的基准字号
+const NARROW_SLOT_THRESHOLD = 72; // 文字框宽度低于此值视为"横向空间明显受限"
 const LABEL_DOT_GAP = 0; // 上方节点标签到圆点的间距
 const LABEL_MARGIN = 0; // 标签区域边距（去掉，压缩高度）
 const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上方视觉一致）
@@ -37,7 +40,7 @@ const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上�
 
 
 
-export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps) {
+export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: TaskCardProps) {
   const { nodes, color, note } = task;
   const nodeCount = nodes.length;
   const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
@@ -45,13 +48,22 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
   const { fontSize: LABEL_FONT_SIZE } = useFontSize();
   const { showConfirm } = useConfirm();
   const TITLE_FONT_SIZE = LABEL_FONT_SIZE + 4; // 标题比节点标签大4号
-  const LINE_HEIGHT = LABEL_FONT_SIZE + 5;
-  const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
-  // 下方标签：与上方高度一致
-  const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
 
   const [progress, setProgress] = useState(task.progress_position);
   const [barWidth, setBarWidth] = useState(0);
+
+  // 每个文字框可用宽度：多节点受节点间距限制，单节点为整条轨道
+  const labelSlotWidth = nodeCount > 1
+    ? Math.min(LABEL_MAX_WIDTH, barWidth / (nodeCount - 1))
+    : barWidth;
+  // 横向空间明显受限时，标签忽略字体放大设置、收敛到基准字号，优先展示更多文字内容
+  const labelFontSize = labelSlotWidth < NARROW_SLOT_THRESHOLD
+    ? Math.min(LABEL_FONT_SIZE, MIN_LABEL_FONT_SIZE)
+    : LABEL_FONT_SIZE;
+  const LINE_HEIGHT = labelFontSize + 5;
+  const ABOVE_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
+  // 下方标签：与上方高度一致
+  const BELOW_HEIGHT = LINE_HEIGHT * LABEL_ROWS + LABEL_MARGIN + LABEL_DOT_GAP;
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [localTitles, setLocalTitles] = useState<Record<string, string>>(
@@ -231,28 +243,32 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
             {note.trim()}
           </Text>
         )}
-        {/* 右上角：详情按钮 */}
-        <Pressable
-          onPress={() => onOpenDetail(task.id)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          className="px-2.5 py-0.5 rounded-full"
-          style={{ backgroundColor: `${color}18`, marginLeft: 8 }}
-        >
-          <Text
-            className="text-xs font-sans font-medium"
-            style={{ color }}
+        {/* 右上角：详情按钮（只读模式隐藏） */}
+        {!readOnly && (
+          <Pressable
+            onPress={() => onOpenDetail(task.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="px-2.5 py-0.5 rounded-full"
+            style={{ backgroundColor: `${color}18`, marginLeft: 8 }}
           >
-            详情
-          </Text>
-        </Pressable>
-        {/* 完成按钮（打勾） */}
-        <Pressable
-          onPress={handleComplete}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{ marginLeft: 8 }}
-        >
-          <CheckCircle size={18} color="#9CA3AF" />
-        </Pressable>
+            <Text
+              className="text-xs font-sans font-medium"
+              style={{ color }}
+            >
+              详情
+            </Text>
+          </Pressable>
+        )}
+        {/* 完成按钮（打勾，只读模式隐藏） */}
+        {!readOnly && (
+          <Pressable
+            onPress={handleComplete}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ marginLeft: 8 }}
+          >
+            <CheckCircle size={18} color="#9CA3AF" />
+          </Pressable>
+        )}
       </View>
 
       {/* ── 进度条容器 ── */}
@@ -319,7 +335,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                     multiline
                     style={{
                       flex: 1,
-                      fontSize: LABEL_FONT_SIZE,
+                      fontSize: labelFontSize,
                       lineHeight: LINE_HEIGHT,
                       color: '#374151',
                       borderBottomWidth: 1,
@@ -353,13 +369,20 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                     <CheckCircle size={20} color={color} fill="transparent" strokeWidth={2.5} />
                   </Pressable>
                 </View>
+              ) : readOnly ? (
+                <Text
+                  style={{ fontSize: labelFontSize, color, fontFamily: 'System', fontWeight: '500', lineHeight: LINE_HEIGHT }}
+                  numberOfLines={LABEL_ROWS}
+                >
+                  {displayTitle}
+                </Text>
               ) : (
                 <Pressable
                   onPress={(e) => { e.stopPropagation?.(); startEditNode(node.id, displayTitle); }}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text
-                    style={{ fontSize: LABEL_FONT_SIZE, color, fontFamily: 'System', fontWeight: '500', lineHeight: LINE_HEIGHT }}
+                    style={{ fontSize: labelFontSize, color, fontFamily: 'System', fontWeight: '500', lineHeight: LINE_HEIGHT }}
                     numberOfLines={LABEL_ROWS}
                   >
                     {displayTitle}
@@ -444,7 +467,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                       multiline
                       style={{
                         flex: 1,
-                        fontSize: LABEL_FONT_SIZE,
+                        fontSize: labelFontSize,
                         lineHeight: LINE_HEIGHT,
                         color: '#374151',
                         borderBottomWidth: 1,
@@ -478,6 +501,20 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                       <CheckCircle size={20} color={color} fill="transparent" strokeWidth={2.5} />
                     </Pressable>
                   </View>
+                ) : readOnly ? (
+                  <Text
+                    style={{
+                      fontSize: labelFontSize,
+                      lineHeight: LINE_HEIGHT,
+                      color: isCompleted ? color : '#9CA3AF',
+                      fontFamily: 'System',
+                      fontWeight: isCompleted ? '500' : '400',
+                      textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
+                    }}
+                    numberOfLines={LABEL_ROWS}
+                  >
+                    {displayTitle}
+                  </Text>
                 ) : (
                   <Pressable
                     onPress={(e) => { e.stopPropagation?.(); startEditNode(node.id, displayTitle); }}
@@ -485,7 +522,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
                   >
                     <Text
                       style={{
-                        fontSize: LABEL_FONT_SIZE,
+                        fontSize: labelFontSize,
                         lineHeight: LINE_HEIGHT,
                         color: isCompleted ? color : '#9CA3AF',
                         fontFamily: 'System',
@@ -503,8 +540,8 @@ export default function TaskCard({ task, onUpdate, onOpenDetail }: TaskCardProps
           );
         })}
 
-        {/* ── 第3层：可拖动的进度把手（最上层，接收全部交互）── */}
-        {barWidth > 0 && (
+        {/* ── 第3层：可拖动的进度把手（只读模式隐藏）── */}
+        {barWidth > 0 && !readOnly && (
           <GestureDetector gesture={panGesture}>
             <Animated.View
               style={[
