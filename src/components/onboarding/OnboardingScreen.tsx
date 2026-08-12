@@ -55,7 +55,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   const handleNext = useCallback(() => {
     if (activeIndex < slides.length - 1) {
-      flatlistRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
+      // 直接滚动到下一屏偏移量（scrollToIndex 在 react-native-web 上依赖 getItemLayout 常失效）
+      flatlistRef.current?.scrollToOffset({
+        offset: SCREEN_WIDTH * (activeIndex + 1),
+        animated: true,
+      });
     } else {
       onComplete();
     }
@@ -87,6 +91,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           scrollEventThrottle={16}
           onScroll={onScroll}
           bounces={false}
+          getItemLayout={(_, index) => ({
+            length: SCREEN_WIDTH,
+            offset: SCREEN_WIDTH * index,
+            index,
+          })}
           renderItem={({ item }) => (
             <View
               style={{ width: SCREEN_WIDTH }}
