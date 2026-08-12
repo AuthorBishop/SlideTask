@@ -67,17 +67,17 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
-      {/* 跳过按钮（第1、2屏显示） */}
-      {activeIndex < slides.length - 1 && (
-        <View className="items-end px-6 pt-4">
-          <Pressable
-            onPress={onComplete}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text className="text-sm font-sans text-muted-foreground">跳过</Text>
-          </Pressable>
-        </View>
-      )}
+      {/* 跳过按钮：始终占位，保持三页顶部间距一致；最后一页隐藏但保留布局高度 */}
+      <View className="items-end px-6 pt-4">
+        <Pressable
+          onPress={onComplete}
+          disabled={activeIndex === slides.length - 1}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ opacity: activeIndex < slides.length - 1 ? 1 : 0 }}
+        >
+          <Text className="text-sm font-sans text-muted-foreground">跳过</Text>
+        </Pressable>
+      </View>
 
       {/* 引导内容 */}
       <View className="flex-1 justify-center">
