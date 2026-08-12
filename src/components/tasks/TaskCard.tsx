@@ -355,10 +355,8 @@ export default function TaskCard({
                 // zIndex:5 介于轨道(0)与拖动把手(10)之间，避免编辑态被手柄覆盖
                 zIndex: isEditing ? 6 : 1,
                 elevation: isEditing ? 6 : 1,
-                // 非编辑：固定高度贴在轨道上方；编辑：以圆点上方为底边向上自适应展开
-                ...(isEditing
-                  ? { bottom: SINGLE_NODE_HEIGHT - ABOVE_HEIGHT, justifyContent: 'flex-end' }
-                  : { top: 0, height: ABOVE_HEIGHT, justifyContent: 'flex-end' }),
+                // 编辑态与显示态共用同一几何（top+height 确定，避免 bottom 锚定在 Web 端塌缩）
+                ...{ top: 0, height: ABOVE_HEIGHT, justifyContent: 'flex-end' },
               }}
             >
               {isEditing ? (
@@ -483,14 +481,10 @@ export default function TaskCard({
                   // 编辑态提升到 Layer 3 (手柄) 之上，避免输入框被拖动手柄覆盖
                   zIndex: isEditing ? 20 : 1,
                   elevation: isEditing ? 20 : 1,
-                  // 非编辑：固定高度；编辑：自适应——上方标签向上展开，下方标签向下展开
+                  // 编辑态与显示态共用同一几何：上方 top+height 确定（避免 bottom 锚定在 Web 端塌缩），下方 top 锚定
                   ...(isAbove
-                    ? (isEditing
-                        ? { bottom: CONTAINER_HEIGHT - ABOVE_HEIGHT, justifyContent: 'flex-end' }
-                        : { top: 0, height: ABOVE_HEIGHT, justifyContent: 'flex-end' })
-                    : (isEditing
-                        ? { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, justifyContent: 'flex-start' }
-                        : { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, height: BELOW_HEIGHT, justifyContent: 'flex-start' })),
+                    ? { top: 0, height: ABOVE_HEIGHT, justifyContent: 'flex-end' }
+                    : { top: TRACK_CENTER_Y + NODE_DOT_R + TRACK_GAP, height: BELOW_HEIGHT, justifyContent: 'flex-start' }),
                 }}
               >
                 {isEditing ? (
