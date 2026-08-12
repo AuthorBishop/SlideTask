@@ -24,6 +24,12 @@ interface TaskCardProps {
   onUpdate: () => void;
   onOpenDetail: (taskId: string) => void;
   readOnly?: boolean;
+  /** 隐藏右上角「详情」和「完成」按钮（用于示例预览等场景） */
+  hideActions?: boolean;
+  /** 自定义进度保存（替代数据库 API，如示例数据只存本地） */
+  onSaveProgress?: (value: number) => void | Promise<void>;
+  /** 自定义节点标题保存（替代数据库 API，如示例数据只存本地） */
+  onSaveNodeTitle?: (nodeId: string, title: string) => void | Promise<void>;
 }
 
 const LABEL_MAX_WIDTH = 80;
@@ -42,7 +48,15 @@ const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上�
 
 
 
-export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: TaskCardProps) {
+export default function TaskCard({
+  task,
+  onUpdate,
+  onOpenDetail,
+  readOnly,
+  hideActions,
+  onSaveProgress,
+  onSaveNodeTitle,
+}: TaskCardProps) {
   const { nodes, color, note } = task;
   const nodeCount = nodes.length;
   const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
@@ -92,12 +106,16 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
     async (val: number) => {
       setProgress(val);
       try {
-        await updateTaskProgress(task.id, val);
+        if (onSaveProgress) {
+          await onSaveProgress(val);
+        } else {
+          await updateTaskProgress(task.id, val);
+        }
       } catch (e) {
         console.error('保存进度失败', e);
       }
     },
-    [task.id]
+    [task.id, onSaveProgress]
   );
 
   // ── 手动激活拖动手势（方向意图实时判定）──
@@ -182,7 +200,11 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
     setLocalTitles((prev) => ({ ...prev, [editingNodeId]: trimmed }));
     setEditingNodeId(null);
     try {
-      await updateNodeTitle(editingNodeId, trimmed);
+      if (onSaveNodeTitle) {
+        await onSaveNodeTitle(editingNodeId, trimmed);
+      } else {
+        await updateNodeTitle(editingNodeId, trimmed);
+      }
     } catch (e) {
       console.error('保存节点标题失败', e);
       setLocalTitles((prev) => ({
@@ -190,7 +212,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
         [editingNodeId]: nodes.find((n) => n.id === editingNodeId)?.title ?? prev[editingNodeId],
       }));
     }
-  }, [editingNodeId, editingText, nodes]);
+  }, [editingNodeId, editingText, nodes, onSaveNodeTitle]);
 
   const startEditNode = useCallback((nodeId: string, currentTitle: string) => {
     setEditingNodeId(nodeId);
@@ -249,8 +271,8 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
             {note.trim()}
           </Text>
         )}
-        {/* 右上角：详情按钮（只读模式隐藏） */}
-        {!readOnly && (
+        {/* 右上角：详情按钮（只读或隐藏操作时隐藏） */}
+        {!readOnly && !hideActions && (
           <Pressable
             onPress={() => onOpenDetail(task.id)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -265,8 +287,8 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
             </Text>
           </Pressable>
         )}
-        {/* 完成按钮（打勾，只读模式隐藏） */}
-        {!readOnly && (
+        {/* 完成按钮（打勾，只读或隐藏操作时隐藏） */}
+        {!readOnly && !hideActions && (
           <Pressable
             onPress={handleComplete}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

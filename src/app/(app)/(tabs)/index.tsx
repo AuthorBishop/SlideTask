@@ -378,7 +378,8 @@ export default function HomeScreen() {
             contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
           >
-            <DemoTaskCard />
+            {/* key 随弹窗开关变化：每次打开都挂载全新示例数据 */}
+            <DemoTaskCard key={showDemoPreview ? 'demo-open' : 'demo-closed'} />
           </ScrollView>
         </SafeAreaView>
       </Modal>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import TaskCard from './TaskCard';
 import { TaskWithNodes } from '@/types/types';
@@ -26,17 +26,41 @@ interface DemoTaskCardProps {
 }
 
 export default function DemoTaskCard({ onDismiss }: DemoTaskCardProps) {
+  // 示例任务数据：仅存在于组件本地，任何修改都不写入数据库
+  const [demoTask, setDemoTask] = useState<TaskWithNodes>(DEMO_TASK);
+
+  // 调整进度：仅更新本地示例数据
+  const handleSaveProgress = (value: number) => {
+    setDemoTask((prev) => ({
+      ...prev,
+      progress_position: value,
+      updated_at: new Date().toISOString(),
+    }));
+  };
+
+  // 编辑节点名称：仅更新本地示例数据
+  const handleSaveNodeTitle = (nodeId: string, title: string) => {
+    setDemoTask((prev) => ({
+      ...prev,
+      updated_at: new Date().toISOString(),
+      nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, title } : n)),
+    }));
+  };
+
   return (
     <View style={styles.wrapper}>
       {/* 虚线边框容器 */}
       <View style={styles.dashedBorder}>
         <View style={styles.padding}>
-          {/* 复用真实 TaskCard，只读模式：禁用拖拽/编辑/完成/详情 */}
+          {/* 复用真实 TaskCard：可编辑/可拖拽，但通过 hideActions 隐藏详情与完成按钮，
+              并通过自定义保存回调把修改写入本地示例数据（不落数据库） */}
           <TaskCard
-            task={DEMO_TASK}
+            task={demoTask}
             onUpdate={() => {}}
             onOpenDetail={() => {}}
-            readOnly
+            hideActions
+            onSaveProgress={handleSaveProgress}
+            onSaveNodeTitle={handleSaveNodeTitle}
           />
         </View>
 
