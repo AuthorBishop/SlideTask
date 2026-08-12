@@ -230,7 +230,7 @@ export default function TaskCard({ task, onUpdate, onOpenDetail, readOnly }: Tas
   return (
     <View
       style={{ borderCurve: 'continuous', backgroundColor: bgColor, borderRadius: 16 }}
-      className="px-4 py-4 mb-4"
+      className="px-4 py-2 mb-2"
     >
       {/* ── 任务标题行 ── */}
       <View className="flex-row items-end" style={{ marginBottom: 0 }}>
