@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Plus, Type } from 'lucide-react-native';
+import { Eye, Plus, Sparkles, Compass, Type, X } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -26,6 +28,15 @@ import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import DemoTaskCard from '@/components/tasks/DemoTaskCard';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Icon } from '@/components/ui/icon';
+import { Text as UIText } from '@/components/ui/text';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -34,6 +45,8 @@ export default function HomeScreen() {
   const [tasks, setTasks] = useState<TaskWithNodes[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showGuidePreview, setShowGuidePreview] = useState(false);
+  const [showDemoPreview, setShowDemoPreview] = useState(false);
   const { level, label, nextLevel } = useFontSize();
 
   // 引导页状态
@@ -157,17 +170,46 @@ export default function HomeScreen() {
               {tasks.length > 0 ? `${tasks.length} 个进行中` : '开始管理你的任务'}
             </Text>
           </View>
-          {/* 已完成入口 */}
-          <Pressable
-            onPress={() => router.push('/(app)/completed')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            className="px-4 py-2 rounded-full"
-            style={{ backgroundColor: '#F3F4F6' }}
-          >
-            <Text className="text-sm font-glow-sans-sc" style={{ color: '#6B7280' }}>
-              已完成
-            </Text>
-          </Pressable>
+          {/* 开发预览 + 已完成入口 */}
+          <View className="flex-row items-center gap-2">
+            {__DEV__ && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Pressable
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    className="flex-row items-center gap-1.5 px-4 py-2 rounded-full"
+                    style={{ backgroundColor: '#F3F4F6' }}
+                  >
+                    <Eye size={14} color="#6B7280" />
+                    <Text className="text-sm font-glow-sans-sc" style={{ color: '#6B7280' }}>
+                      预览
+                    </Text>
+                  </Pressable>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6}>
+                  <DropdownMenuLabel>开发预览</DropdownMenuLabel>
+                  <DropdownMenuItem onPress={() => setShowGuidePreview(true)}>
+                    <Icon as={Compass} className="text-muted-foreground size-4" />
+                    <UIText>查看引导页</UIText>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onPress={() => setShowDemoPreview(true)}>
+                    <Icon as={Sparkles} className="text-muted-foreground size-4" />
+                    <UIText>查看示例</UIText>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Pressable
+              onPress={() => router.push('/(app)/completed')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="px-4 py-2 rounded-full"
+              style={{ backgroundColor: '#F3F4F6' }}
+            >
+              <Text className="text-sm font-glow-sans-sc" style={{ color: '#6B7280' }}>
+                已完成
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -299,6 +341,47 @@ export default function HomeScreen() {
         onClose={() => setShowCreate(false)}
         onCreated={loadTasks}
       />
+
+      {/* 开发预览：引导页（只读模式，不写完成标记） */}
+      <Modal
+        visible={showGuidePreview}
+        animationType="fade"
+        onRequestClose={() => setShowGuidePreview(false)}
+      >
+        <OnboardingScreen
+          readOnly
+          onComplete={() => setShowGuidePreview(false)}
+        />
+      </Modal>
+
+      {/* 开发预览：示例任务（只读展示，不隐藏示例） */}
+      <Modal
+        visible={showDemoPreview}
+        animationType="fade"
+        onRequestClose={() => setShowDemoPreview(false)}
+      >
+        <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-2">
+            <Text className="text-3xl font-glow-sans-sc text-foreground font-semibold tracking-tight">
+              示例任务
+            </Text>
+            <Pressable
+              onPress={() => setShowDemoPreview(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="px-4 py-2 rounded-full"
+              style={{ backgroundColor: '#F3F4F6' }}
+            >
+              <X size={16} color="#6B7280" />
+            </Pressable>
+          </View>
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <DemoTaskCard />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

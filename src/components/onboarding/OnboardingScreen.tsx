@@ -39,9 +39,11 @@ const slides: SlideData[] = [
 
 interface OnboardingScreenProps {
   onComplete: () => void;
+  /** 只读预览模式：不写完成标记，按钮文案变为「关闭」 */
+  readOnly?: boolean;
 }
 
-export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
+export default function OnboardingScreen({ onComplete, readOnly }: OnboardingScreenProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatlistRef = useRef<FlatList<SlideData>>(null);
 
@@ -70,7 +72,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             onPress={onComplete}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text className="text-sm font-sans text-muted-foreground">跳过</Text>
+            <Text className="text-sm font-sans text-muted-foreground">{readOnly ? '关闭' : '跳过'}</Text>
           </Pressable>
         </View>
       )}
@@ -138,7 +140,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           style={{ backgroundColor: '#111827' }}
         >
           <Text className="text-base font-glow-sans-sc text-white font-medium">
-            {activeIndex === slides.length - 1 ? '开始体验' : '下一步'}
+            {readOnly ? '关闭' : activeIndex === slides.length - 1 ? '开始体验' : '下一步'}
           </Text>
         </Pressable>
       </View>
