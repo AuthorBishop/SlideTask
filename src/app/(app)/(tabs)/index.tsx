@@ -342,16 +342,13 @@ export default function HomeScreen() {
         onCreated={loadTasks}
       />
 
-      {/* 开发预览：引导页（只读模式，不写完成标记） */}
+      {/* 开发预览：引导页（与首次体验完全一致，onComplete 只关闭弹窗、不写完成标记） */}
       <Modal
         visible={showGuidePreview}
         animationType="fade"
         onRequestClose={() => setShowGuidePreview(false)}
       >
-        <OnboardingScreen
-          readOnly
-          onComplete={() => setShowGuidePreview(false)}
-        />
+        <OnboardingScreen onComplete={() => setShowGuidePreview(false)} />
       </Modal>
 
       {/* 开发预览：示例任务（只读展示，不隐藏示例） */}
@@ -378,8 +375,12 @@ export default function HomeScreen() {
             contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
           >
-            {/* key 随弹窗开关变化：每次打开都挂载全新示例数据 */}
-            <DemoTaskCard key={showDemoPreview ? 'demo-open' : 'demo-closed'} />
+            {/* key 随弹窗开关变化：每次打开都挂载全新示例数据；
+                onDismiss 只关闭弹窗，不写 hide_demo，与首页示例卡 UI 完全一致 */}
+            <DemoTaskCard
+              key={showDemoPreview ? 'demo-open' : 'demo-closed'}
+              onDismiss={() => setShowDemoPreview(false)}
+            />
           </ScrollView>
         </SafeAreaView>
       </Modal>
