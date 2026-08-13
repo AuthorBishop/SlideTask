@@ -255,47 +255,51 @@ export default function TaskCard({
       className="px-4 py-2 mb-2"
     >
       {/* ── 任务标题行 ── */}
-      <View className="flex-row items-end" style={{ marginBottom: 0 }}>
-        <Text
-          style={{ fontSize: TITLE_FONT_SIZE, fontFamily: 'System', fontWeight: '600', color: '#1F2937', lineHeight: TITLE_FONT_SIZE + 2 }}
-          className="flex-shrink"
-        >
-          {task.title}
-        </Text>
-        {/* 备注：横向空间充足时与标题并排（flex-1 填充标题与按钮之间） */}
-        {note.trim() !== '' && !noteOnOwnLine && (
+      <View className="flex-row items-end justify-between" style={{ marginBottom: 0 }}>
+        {/* 左侧：标题 + 简介（flex-1 自适应，始终占据按钮左侧全部剩余空间，保证右侧按钮固定） */}
+        <View className="flex-row items-end flex-1 min-w-0">
           <Text
-            className="text-xs font-sans text-muted-foreground ml-2 flex-1"
-            style={{ lineHeight: TITLE_FONT_SIZE + 2 }}
+            style={{ fontSize: TITLE_FONT_SIZE, fontFamily: 'System', fontWeight: '600', color: '#1F2937', lineHeight: TITLE_FONT_SIZE + 2 }}
+            className="flex-shrink"
+            numberOfLines={1}
           >
-            {note.trim()}
+            {task.title}
           </Text>
-        )}
-        {/* 右上角：详情按钮（只读或隐藏操作时隐藏） */}
-        {!readOnly && !hideActions && (
-          <Pressable
-            onPress={() => onOpenDetail(task.id)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            className="px-2.5 py-0.5 rounded-full"
-            style={{ backgroundColor: `${color}18`, marginLeft: 8 }}
-          >
+          {/* 备注：横向空间充足时与标题并排（flex-1 填充标题与按钮之间） */}
+          {note.trim() !== '' && !noteOnOwnLine && (
             <Text
-              className="text-xs font-sans font-medium"
-              style={{ color }}
+              className="text-xs font-sans text-muted-foreground ml-2 flex-1"
+              style={{ lineHeight: TITLE_FONT_SIZE + 2 }}
+              numberOfLines={1}
             >
-              详情
+              {note.trim()}
             </Text>
-          </Pressable>
-        )}
-        {/* 完成按钮（打勾，只读或隐藏操作时隐藏） */}
+          )}
+        </View>
+        {/* 右侧：详情 + 完成按钮（固定靠右，不受左侧有无简介影响） */}
         {!readOnly && !hideActions && (
-          <Pressable
-            onPress={handleComplete}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ marginLeft: 8 }}
-          >
-            <CheckCircle size={18} color="#9CA3AF" />
-          </Pressable>
+          <View className="flex-row items-end" style={{ marginLeft: 12 }}>
+            <Pressable
+              onPress={() => onOpenDetail(task.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="px-2.5 py-0.5 rounded-full"
+              style={{ backgroundColor: `${color}18` }}
+            >
+              <Text
+                className="text-xs font-sans font-medium"
+                style={{ color }}
+              >
+                详情
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleComplete}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginLeft: 8 }}
+            >
+              <CheckCircle size={18} color="#9CA3AF" />
+            </Pressable>
+          </View>
         )}
       </View>
 
