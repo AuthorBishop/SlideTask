@@ -346,6 +346,10 @@ export default function TaskCard({
           const isEditing = editingNodeId === node.id;
           const displayTitle = localTitles[node.id] ?? node.title;
           const isCompleted = progress >= 1 - 0.001;
+          // 标签右对齐节点位置：宽度受限时优先贴靠右侧，编辑态向左扩展
+          const baseLabelWidth = Math.min(LABEL_MAX_WIDTH, barWidth);
+          const labelWidth = isEditing ? Math.max(baseLabelWidth, 200) : baseLabelWidth;
+          const labelLeft = barWidth - baseLabelWidth;
           return (
             <>
             {/* 节点圆点：固定显示在进度条最右端（中心对齐右端，右缘露出半圆，与多节点末节点一致） */}
@@ -363,12 +367,12 @@ export default function TaskCard({
                 backgroundColor: isCompleted ? color : '#FFFFFF',
               }}
             />
-            {/* 节点标签 */}
+            {/* 节点标签：右对齐到节点位置 */}
             <View
               style={{
                 position: 'absolute',
-                left: 0,
-                maxWidth: barWidth,
+                left: labelLeft,
+                width: labelWidth,
                 // zIndex:5 介于轨道(0)与拖动把手(10)之间，避免编辑态被手柄覆盖
                 zIndex: isEditing ? 6 : 1,
                 elevation: isEditing ? 6 : 1,
@@ -424,7 +428,14 @@ export default function TaskCard({
                 </View>
               ) : readOnly ? (
                 <Text
-                  style={{ fontSize: labelFontSize, color, fontFamily: 'System', fontWeight: '500', lineHeight: LINE_HEIGHT }}
+                  style={{
+                    fontSize: labelFontSize,
+                    lineHeight: LINE_HEIGHT,
+                    color: isCompleted ? color : '#9CA3AF',
+                    fontFamily: 'System',
+                    fontWeight: isCompleted ? '500' : '400',
+                    textAlign: 'right',
+                  }}
                   numberOfLines={LABEL_ROWS}
                 >
                   {displayTitle}
@@ -435,7 +446,14 @@ export default function TaskCard({
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text
-                    style={{ fontSize: labelFontSize, color, fontFamily: 'System', fontWeight: '500', lineHeight: LINE_HEIGHT }}
+                    style={{
+                      fontSize: labelFontSize,
+                      lineHeight: LINE_HEIGHT,
+                      color: isCompleted ? color : '#9CA3AF',
+                      fontFamily: 'System',
+                      fontWeight: isCompleted ? '500' : '400',
+                      textAlign: 'right',
+                    }}
                     numberOfLines={LABEL_ROWS}
                   >
                     {displayTitle}
