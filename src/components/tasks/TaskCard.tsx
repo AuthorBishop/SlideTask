@@ -345,9 +345,26 @@ export default function TaskCard({
           const node = nodes[0];
           const isEditing = editingNodeId === node.id;
           const displayTitle = localTitles[node.id] ?? node.title;
+          const isCompleted = progress >= 1 - 0.001;
           return (
+            <>
+            {/* 节点圆点：固定显示在进度条最右端（中心对齐右端，右缘露出半圆，与多节点末节点一致） */}
             <View
-              key={node.id}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: DOT_TOP,
+                right: -NODE_DOT_R,
+                width: NODE_DOT_R * 2,
+                height: NODE_DOT_R * 2,
+                borderRadius: NODE_DOT_R,
+                borderWidth: 3,
+                borderColor: isCompleted ? 'rgba(0,0,0,0.15)' : '#D1D5DB',
+                backgroundColor: isCompleted ? color : '#FFFFFF',
+              }}
+            />
+            {/* 节点标签 */}
+            <View
               style={{
                 position: 'absolute',
                 left: 0,
@@ -426,6 +443,7 @@ export default function TaskCard({
                 </Pressable>
               )}
             </View>
+          </>
           );
         })()}
 
