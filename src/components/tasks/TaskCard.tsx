@@ -159,15 +159,19 @@ export default function TaskCard({
   const fillFlash = useSharedValue(1);
 
   // 触觉反馈（Web/模拟器不支持时静默忽略）
+  // 注意：selectionAsync 在 Android 上依赖系统"触摸反馈"设置，国产 ROM 默认关闭会无感，
+  // 因此改用 impactAsync 直接驱动振动马达，保证真机可感知。
   const hapticSelection = useCallback(() => {
     try {
-      Haptics.selectionAsync();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (e) {
       // 平台不支持时忽略
     }
   }, []);
   const hapticSuccess = useCallback(() => {
     try {
+      // Medium 冲击走振动马达（两平台稳定可感）+ 系统成功通知双保险
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       // 平台不支持时忽略
