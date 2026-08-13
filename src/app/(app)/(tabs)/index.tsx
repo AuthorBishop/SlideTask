@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Eye, Plus, Sparkles, Compass, Type, X } from 'lucide-react-native';
+import { Eye, Plus, Sparkles, Compass, Type, X, Settings as SettingsIcon } from 'lucide-react-native';
 import Animated, {
   SharedValue,
   useSharedValue,
@@ -349,6 +349,14 @@ export default function HomeScreen() {
               <Text className="text-sm font-glow-sans-sc" style={{ color: '#6B7280' }}>
                 已完成
               </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(app)/settings')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="w-9 h-9 items-center justify-center rounded-full"
+              style={{ backgroundColor: '#F3F4F6' }}
+            >
+              <SettingsIcon size={17} color="#6B7280" />
             </Pressable>
           </View>
         </View>

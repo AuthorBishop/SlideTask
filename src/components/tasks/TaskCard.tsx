@@ -1,7 +1,6 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
-  Platform,
   Pressable,
   Text,
   TextInput,
@@ -19,8 +18,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import * as Haptics from 'expo-haptics';
 import { playTick, playDone } from '@/utils/sounds';
+import { hapticTick, hapticSuccess } from '@/utils/haptics';
 import { TaskWithNodes } from '@/types/types';
 import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
 import { CheckCircle } from 'lucide-react-native';
@@ -160,35 +159,7 @@ export default function TaskCard({
   // 完成仪式：轨道填充亮度闪烁（到达终点瞬间 1→0.6→1）
   const fillFlash = useSharedValue(1);
 
-  // 触觉反馈（Web/模拟器不支持时静默忽略）
-  // Android 走系统触感通道 View.performHapticFeedback()（Expo 官方推荐），与系统 UI 滑动触感一致、
-  // 且不依赖 VIBRATE 权限；iOS 走 Taptic Engine 的 impactAsync。
-  const hapticSelection = useCallback(() => {
-    try {
-      if (Platform.OS === 'android') {
-        // Segment_Tick：滑块在离散点位间切换的标准触感，语义与"点亮节点"完全匹配
-        Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick);
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    } catch (e) {
-      // 平台不支持时忽略
-    }
-  }, []);
-  const hapticSuccess = useCallback(() => {
-    try {
-      if (Platform.OS === 'android') {
-        // Confirm：系统"确认/成功完成"触感，与完成语义匹配
-        Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm);
-      } else {
-        // iOS：Medium 冲击 + 系统成功通知双保险
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch (e) {
-      // 平台不支持时忽略
-    }
-  }, []);
+  // 触觉反馈统一走 @/utils/haptics（内部处理平台分支与开关）
 
   const panGesture = Gesture.Pan()
     .manualActivation()             // ① 手动激活：由 onTouchesMove 控制激活/失败
@@ -228,7 +199,7 @@ export default function TaskCard({
         const seg = Math.min(nodeCount - 1, Math.floor(dragProgress.value * (nodeCount - 1)));
         if (seg > lastCrossedIndex.value) {
           lastCrossedIndex.value = seg;
-          runOnJS(hapticSelection)();
+          runOnJS(hapticTick)();
           runOnJS(playTick)();
         }
       }
