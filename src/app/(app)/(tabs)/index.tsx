@@ -11,6 +11,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Eye, Plus, Sparkles, Compass, Type, X } from 'lucide-react-native';
 import Animated, {
+  SharedValue,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -39,6 +40,146 @@ import { Icon } from '@/components/ui/icon';
 import { Text as UIText } from '@/components/ui/text';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// 空状态迷你进度条：轨道 + 往返移动的把手 + 节点圆点实时点亮，让空页面本身演示核心交互
+function EmptyStateProgress() {
+  // 动画进度：0 → 1 → 0 无限往返（进度语义"拖过来再拉回去"）
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+  }, [progress]);
+
+  // 迷你轨道几何
+  const BAR_W = 168;
+  const BAR_H = 10;
+  const DOT_R = 8;
+  const HANDLE = 18;
+  const NODES = 4; // 演示 4 个节点
+  const dotTop = BAR_H / 2 - DOT_R;
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  const handleStyle = useAnimatedStyle(() => {
+    const marginLeftPx = progress.value * BAR_W - HANDLE / 2;
+    return { marginLeft: marginLeftPx };
+  });
+
+  return (
+    <View
+      className="items-center justify-center mb-8"
+      style={{ width: BAR_W + DOT_R * 2, height: DOT_R * 2 }}
+    >
+      {/* 轨道（含填充） */}
+      <View
+        style={{
+          position: 'absolute',
+          top: BAR_H / 2 - BAR_H / 2,
+          left: DOT_R,
+          width: BAR_W,
+          height: BAR_H,
+          borderRadius: BAR_H / 2,
+          backgroundColor: '#E8E8ED',
+          overflow: 'hidden',
+        }}
+      >
+        <Animated.View
+          style={[
+            fillStyle,
+            {
+              height: BAR_H,
+              backgroundColor: '#6366F1',
+              borderRadius: BAR_H / 2,
+            },
+          ]}
+        />
+      </View>
+
+      {/* 节点圆点：随把手位置实时点亮 */}
+      {Array.from({ length: NODES }).map((_, i) => {
+        const pos = i * (1 / (NODES - 1));
+        return <EmptyStateNodeDot key={i} left={DOT_R + pos * BAR_W - DOT_R} top={dotTop} progress={progress} pos={pos} />;
+      })}
+
+      {/* 往返把手 */}
+      <Animated.View
+        style={[
+          handleStyle,
+          {
+            position: 'absolute',
+            top: BAR_H / 2 - HANDLE / 2,
+            left: DOT_R,
+            width: HANDLE,
+            height: HANDLE,
+            borderRadius: HANDLE / 2,
+            backgroundColor: '#FFFFFF',
+            borderWidth: 2.5,
+            borderColor: '#6366F1',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+        ]}
+      >
+        <View
+          style={{
+            width: HANDLE - 6,
+            height: HANDLE - 6,
+            borderRadius: (HANDLE - 6) / 2,
+            backgroundColor: '#6366F1',
+          }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+// 单个节点圆点：进度越过该节点时点亮（未完成白底灰边，完成时任务色实心）
+function EmptyStateNodeDot({
+  left,
+  top,
+  progress,
+  pos,
+}: {
+  left: number;
+  top: number;
+  progress: SharedValue<number>;
+  pos: number;
+}) {
+  const dotStyle = useAnimatedStyle(() => {
+    const done = progress.value >= pos - 0.001;
+    return {
+      borderColor: withTiming(done ? 'rgba(0,0,0,0.15)' : '#D1D5DB', { duration: 120 }),
+      backgroundColor: withTiming(done ? '#6366F1' : '#FFFFFF', { duration: 120 }),
+    };
+  });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        dotStyle,
+        {
+          position: 'absolute',
+          left,
+          top,
+          width: 16,
+          height: 16,
+          borderRadius: 8,
+          borderWidth: 2.5,
+        },
+      ]}
+    />
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -240,12 +381,7 @@ export default function HomeScreen() {
               <View>
                 <DemoTaskCard onDismiss={handleDismissDemo} />
                 <View className="items-center justify-center pt-6">
-                  <View
-                    className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                    style={{ backgroundColor: '#F8F9FB' }}
-                  >
-                    <Text style={{ fontSize: 28 }}>✧</Text>
-                  </View>
+                  <EmptyStateProgress />
                   <Text className="text-base font-glow-sans-sc text-foreground text-center mb-1">
                     暂无任务
                   </Text>
@@ -256,12 +392,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               <View className="items-center justify-center pt-24 px-8">
-                <View
-                  className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                  style={{ backgroundColor: '#F8F9FB' }}
-                >
-                  <Text style={{ fontSize: 28 }}>✧</Text>
-                </View>
+                <EmptyStateProgress />
                 <Text className="text-base font-glow-sans-sc text-foreground text-center mb-1">
                   暂无任务
                 </Text>

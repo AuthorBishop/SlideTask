@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { ListChecks, ChevronsRight, Settings2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DemoTaskCard from '@/components/tasks/DemoTaskCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -17,6 +18,8 @@ interface SlideData {
   icon: React.ReactNode;
   title: string;
   description: string;
+  /** 该页嵌入可交互组件（如可拖动的示例任务卡片）以替代静态图标 */
+  interactive?: boolean;
 }
 
 const slides: SlideData[] = [
@@ -29,6 +32,7 @@ const slides: SlideData[] = [
     icon: <ChevronsRight size={48} color="#6366F1" />,
     title: '拖拽进度条追踪进展',
     description: '用手指拖动进度条，每完成一步填满一格，享受推进感带来的动力。',
+    interactive: true,
   },
   {
     icon: <Settings2 size={48} color="#6366F1" />,
@@ -101,13 +105,20 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               style={{ width: SCREEN_WIDTH }}
               className="items-center justify-center px-10"
             >
-              {/* 图标容器 */}
-              <View
-                className="w-28 h-28 rounded-full items-center justify-center mb-10"
-                style={{ backgroundColor: '#F5F3FF' }}
-              >
-                {item.icon}
-              </View>
+              {/* 交互页：嵌入真实可拖动的示例任务卡片，亲手拖动一次即建立"滑动=进度"语义 */}
+              {item.interactive ? (
+                <View className="w-full mb-8">
+                  <DemoTaskCard />
+                </View>
+              ) : (
+                /* 图标容器 */
+                <View
+                  className="w-28 h-28 rounded-full items-center justify-center mb-10"
+                  style={{ backgroundColor: '#F5F3FF' }}
+                >
+                  {item.icon}
+                </View>
+              )}
 
               {/* 标题 */}
               <Text className="text-2xl font-glow-sans-sc text-foreground font-semibold text-center mb-3">

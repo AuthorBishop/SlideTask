@@ -6,13 +6,19 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  ViewStyle,
 } from 'react-native';
 import Animated, {
+  interpolateColor,
   runOnJS,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 import { TaskWithNodes } from '@/types/types';
 import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
 import { CheckCircle } from 'lucide-react-native';
@@ -43,6 +49,7 @@ const NARROW_TITLE_ROW_WIDTH = 380; // 屏幕宽度低于此值（窄屏）时�
 const LABEL_DOT_GAP = 0; // 上方节点标签到圆点的间距
 const LABEL_MARGIN = 0; // 标签区域边距（去掉，压缩高度）
 const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上方视觉一致）
+const SNAP_THRESHOLD = 0.08; // 磁性吸附阈值：距最近节点 < 轨道宽度 8% 时吸附到该节点
 
 
 
@@ -89,6 +96,9 @@ export default function TaskCard({
     () => Object.fromEntries(nodes.map((n) => [n.id, n.title]))
   );
   const editInputRef = useRef<TextInput>(null);
+  // 进度保存失败提示（内联小字，3 秒自动消失）
+  const [saveError, setSaveError] = useState(false);
+  const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragProgress = useSharedValue(task.progress_position);
 
@@ -97,6 +107,13 @@ export default function TaskCard({
     dragProgress.value = task.progress_position;
     setLocalTitles(Object.fromEntries(nodes.map((n) => [n.id, n.title])));
   }, [task.progress_position, nodes]);
+
+  // 卸载时清理失败提示定时器
+  useEffect(() => {
+    return () => {
+      if (saveErrorTimer.current) clearTimeout(saveErrorTimer.current);
+    };
+  }, []);
 
   const onBarLayout = useCallback((e: LayoutChangeEvent) => {
     setBarWidth(e.nativeEvent.layout.width);
@@ -113,9 +130,15 @@ export default function TaskCard({
         }
       } catch (e) {
         console.error('保存进度失败', e);
+        // 保存失败兜底：把手回弹到上次保存值，并显示内联提示
+        setProgress(task.progress_position);
+        dragProgress.value = withTiming(task.progress_position, { duration: 200 });
+        setSaveError(true);
+        if (saveErrorTimer.current) clearTimeout(saveErrorTimer.current);
+        saveErrorTimer.current = setTimeout(() => setSaveError(false), 3000);
       }
     },
-    [task.id, onSaveProgress]
+    [task.id, task.progress_position, onSaveProgress]
   );
 
   // ── 手动激活拖动手势（方向意图实时判定）──
@@ -130,6 +153,26 @@ export default function TaskCard({
   const startX = useSharedValue(0);
   const isDragging = useSharedValue(false);
   const handleScale = useSharedValue(1);
+  // 拖动中已跨过的最远节点段（用于跨节点触觉反馈，正向越过节点时"咔哒"一次）
+  const lastCrossedIndex = useSharedValue(-1);
+  // 完成仪式：轨道填充亮度闪烁（到达终点瞬间 1→0.6→1）
+  const fillFlash = useSharedValue(1);
+
+  // 触觉反馈（Web/模拟器不支持时静默忽略）
+  const hapticSelection = useCallback(() => {
+    try {
+      Haptics.selectionAsync();
+    } catch (e) {
+      // 平台不支持时忽略
+    }
+  }, []);
+  const hapticSuccess = useCallback(() => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      // 平台不支持时忽略
+    }
+  }, []);
 
   const panGesture = Gesture.Pan()
     .manualActivation()             // ① 手动激活：由 onTouchesMove 控制激活/失败
@@ -153,18 +196,61 @@ export default function TaskCard({
       isDragging.value = true;
       handleScale.value = 1.25; // 略放大，视觉反馈"已抓取"
       startX.value = dragProgress.value * barWidth;
+      // 重置跨节点跟踪：从当前所在节点段开始
+      lastCrossedIndex.value = nodeCount > 1
+        ? Math.min(nodeCount - 1, Math.floor(dragProgress.value * (nodeCount - 1)))
+        : -1;
+      fillFlash.value = 1;
     })
     .onUpdate((e) => {
       'worklet';
       if (barWidth <= 0) return;
       const newX = Math.max(0, Math.min(barWidth, startX.value + e.translationX));
       dragProgress.value = newX / barWidth;
+      // 跨节点触觉反馈：仅正向拖过节点时触发一次（反向不触发，避免抖动）
+      if (nodeCount > 1) {
+        const seg = Math.min(nodeCount - 1, Math.floor(dragProgress.value * (nodeCount - 1)));
+        if (seg > lastCrossedIndex.value) {
+          lastCrossedIndex.value = seg;
+          runOnJS(hapticSelection)();
+        }
+      }
     })
     .onEnd(() => {
       'worklet';
       isDragging.value = false;
-      handleScale.value = 1;
-      runOnJS(saveProgress)(dragProgress.value);
+      const raw = dragProgress.value;
+      // 磁性吸附：距最近节点小于轨道宽度 8% 时吸附到该节点
+      let target = raw;
+      if (nodeCount === 1) {
+        // 单节点仅在最右端：接近终点即吸附到 1（完整完成）
+        if (raw >= 1 - SNAP_THRESHOLD) target = 1;
+      } else {
+        const nearest = Math.max(0, Math.min(nodeCount - 1, Math.round(raw / step)));
+        const nearestPos = nearest * step;
+        if (Math.abs(raw - nearestPos) <= SNAP_THRESHOLD) target = nearestPos;
+      }
+      // 完成仪式：到达终点时把手脉冲 + 轨道闪烁 + 成功触觉
+      const isComplete = target >= 1 - 0.001;
+      if (isComplete) {
+        handleScale.value = withSequence(
+          withTiming(1.4, { duration: 100 }),
+          withTiming(1, { duration: 180 })
+        );
+        fillFlash.value = withSequence(
+          withTiming(0.6, { duration: 90 }),
+          withTiming(1, { duration: 220 })
+        );
+        runOnJS(hapticSuccess)();
+      } else {
+        handleScale.value = 1;
+      }
+      // 动画吸附到目标位置（120ms），动画完成后保存最终值
+      dragProgress.value = withTiming(target, { duration: 120 }, (finished) => {
+        if (finished) {
+          runOnJS(saveProgress)(target);
+        }
+      });
     })
     .onFinalize(() => {
       'worklet';
@@ -174,6 +260,7 @@ export default function TaskCard({
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${dragProgress.value * 100}%`,
+    opacity: fillFlash.value,
   }));
 
   const handlePositionStyle = useAnimatedStyle(() => {
@@ -357,19 +444,12 @@ export default function TaskCard({
           return (
             <>
             {/* 节点圆点：固定显示在进度条最右端（中心对齐右端，右缘露出半圆，与多节点末节点一致） */}
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: DOT_TOP,
-                right: -NODE_DOT_R,
-                width: NODE_DOT_R * 2,
-                height: NODE_DOT_R * 2,
-                borderRadius: NODE_DOT_R,
-                borderWidth: 3,
-                borderColor: isCompleted ? 'rgba(0,0,0,0.15)' : '#D1D5DB',
-                backgroundColor: isCompleted ? color : '#FFFFFF',
-              }}
+            <NodeDot
+              top={DOT_TOP}
+              color={color}
+              snapPoint={1}
+              progressValue={dragProgress}
+              position={{ right: -NODE_DOT_R }}
             />
             {/* 节点标签：右对齐到节点位置 */}
             <View
@@ -492,24 +572,17 @@ export default function TaskCard({
 
           return (
             <View key={node.id}>
-              {/* 节点圆点（首尾对齐到边缘，不拦截触摸） */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top: dotTop,
-                  ...(isFirst
-                    ? { left: -NODE_DOT_R }
-                    : isLast
-                    ? { right: -NODE_DOT_R }
-                    : { left: dotLeft }),
-                  width: NODE_DOT_R * 2,
-                  height: NODE_DOT_R * 2,
-                  borderRadius: NODE_DOT_R,
-                  borderWidth: 3,
-                  borderColor: isCompleted ? 'rgba(0,0,0,0.15)' : '#D1D5DB',
-                  backgroundColor: isCompleted ? color : '#FFFFFF',
-                }}
+              {/* 节点圆点（首尾对齐到边缘，不拦截触摸；完成态实时跟随拖动进度点亮） */}
+              <NodeDot
+                top={dotTop}
+                color={color}
+                snapPoint={nodePos}
+                progressValue={dragProgress}
+                position={isFirst
+                  ? { left: -NODE_DOT_R }
+                  : isLast
+                  ? { right: -NODE_DOT_R }
+                  : { left: dotLeft }}
               />
 
               {/* 节点标签 */}
@@ -654,7 +727,64 @@ export default function TaskCard({
         )}
       </View>
 
+      {/* 进度保存失败提示（内联小字，不占额外布局空间） */}
+      {saveError && (
+        <Text
+          style={{
+            fontSize: 11,
+            color: '#EF4444',
+            marginTop: 2,
+            fontFamily: 'System',
+          }}
+        >
+          保存失败，已恢复原进度
+        </Text>
+      )}
     </View>
+  );
+}
+
+// 节点圆点：完成态实时跟随拖动进度点亮（未完成白底灰边，完成时任务色实心）
+function NodeDot({
+  top,
+  color,
+  snapPoint,
+  progressValue,
+  position,
+}: {
+  top: number;
+  color: string;
+  /** 该节点对应的进度阈值（多节点 i*step，单节点 1） */
+  snapPoint: number;
+  /** 实时拖动进度（sharedValue），拖动过程中即时驱动点亮 */
+  progressValue: SharedValue<number>;
+  /** 定位：首节点 left: -R、末节点 right: -R、中间 left: dotLeft */
+  position: { left?: number; right?: number };
+}) {
+  const dotStyle = useAnimatedStyle(() => {
+    const done = progressValue.value >= snapPoint - 0.001;
+    return {
+      borderColor: withTiming(done ? 'rgba(0,0,0,0.15)' : '#D1D5DB', { duration: 120 }),
+      backgroundColor: withTiming(done ? color : '#FFFFFF', { duration: 120 }),
+    };
+  });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          top,
+          width: NODE_DOT_R * 2,
+          height: NODE_DOT_R * 2,
+          borderRadius: NODE_DOT_R,
+          borderWidth: 3,
+        },
+        position,
+        dotStyle,
+      ]}
+    />
   );
 }
 
