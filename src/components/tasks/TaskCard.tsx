@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import { playTick, playDone } from '@/utils/sounds';
 import { TaskWithNodes } from '@/types/types';
 import { updateTaskProgress, updateNodeTitle, completeTask } from '@/db/api';
 import { CheckCircle } from 'lucide-react-native';
@@ -228,6 +229,7 @@ export default function TaskCard({
         if (seg > lastCrossedIndex.value) {
           lastCrossedIndex.value = seg;
           runOnJS(hapticSelection)();
+          runOnJS(playTick)();
         }
       }
     })
@@ -257,6 +259,7 @@ export default function TaskCard({
           withTiming(1, { duration: 220 })
         );
         runOnJS(hapticSuccess)();
+        runOnJS(playDone)();
       } else {
         handleScale.value = 1;
       }
