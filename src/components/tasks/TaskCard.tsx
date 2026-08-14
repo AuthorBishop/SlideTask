@@ -67,7 +67,8 @@ export default function TaskCard({
 }: TaskCardProps) {
   const { nodes, color, note } = task;
   const nodeCount = nodes.length;
-  const step = nodeCount > 1 ? 1 / (nodeCount - 1) : 1;
+  // 节点均匀分布在 (0, 1]：第 i 个节点位于 (i+1)/nodeCount，避免首节点落在起点 0
+  const step = nodeCount > 1 ? 1 / nodeCount : 1;
 
   const { fontSize: LABEL_FONT_SIZE } = useFontSize();
   const { showConfirm } = useConfirm();
@@ -79,9 +80,9 @@ export default function TaskCard({
   const [progress, setProgress] = useState(task.progress_position);
   const [barWidth, setBarWidth] = useState(0);
 
-  // 每个文字框可用宽度：多节点受节点间距限制，单节点为整条轨道
+  // 每个文字框可用宽度：多节点按节点数等分轨道，单节点为整条轨道
   const labelSlotWidth = nodeCount > 1
-    ? Math.min(LABEL_MAX_WIDTH, barWidth / (nodeCount - 1))
+    ? Math.min(LABEL_MAX_WIDTH, barWidth / nodeCount)
     : barWidth;
   // 横向空间明显受限时，标签忽略字体放大设置、收敛到基准字号，优先展示更多文字内容
   const labelFontSize = labelSlotWidth < NARROW_SLOT_THRESHOLD
@@ -184,8 +185,9 @@ export default function TaskCard({
       handleScale.value = 1.25; // 略放大，视觉反馈"已抓取"
       startX.value = dragProgress.value * barWidth;
       // 重置跨节点跟踪：从当前所在节点段开始
+      // 新布局节点位于 (i+1)/nodeCount，当前段索引 = floor(raw*nodeCount)-1
       lastCrossedIndex.value = nodeCount > 1
-        ? Math.min(nodeCount - 1, Math.floor(dragProgress.value * (nodeCount - 1)))
+        ? Math.min(nodeCount - 1, Math.floor(dragProgress.value * nodeCount) - 1)
         : -1;
       fillFlash.value = 1;
     })
@@ -195,8 +197,9 @@ export default function TaskCard({
       const newX = Math.max(0, Math.min(barWidth, startX.value + e.translationX));
       dragProgress.value = newX / barWidth;
       // 跨节点触觉反馈：仅正向拖过节点时触发一次（反向不触发，避免抖动）
+      // 新布局下，越过第 i 个节点（从 0 计）时 raw 达到 (i+1)/nodeCount
       if (nodeCount > 1) {
-        const seg = Math.min(nodeCount - 1, Math.floor(dragProgress.value * (nodeCount - 1)));
+        const seg = Math.min(nodeCount - 1, Math.floor(dragProgress.value * nodeCount) - 1);
         if (seg > lastCrossedIndex.value) {
           lastCrossedIndex.value = seg;
           runOnJS(hapticTick)();
@@ -214,8 +217,9 @@ export default function TaskCard({
         // 单节点仅在最右端：接近终点即吸附到 1（完整完成）
         if (raw >= 1 - SNAP_THRESHOLD) target = 1;
       } else {
-        const nearest = Math.max(0, Math.min(nodeCount - 1, Math.round(raw / step)));
-        const nearestPos = nearest * step;
+        // 新布局：节点位于 (nearest+1)/nodeCount
+        const nearest = Math.max(0, Math.min(nodeCount - 1, Math.round(raw * nodeCount) - 1));
+        const nearestPos = (nearest + 1) * step;
         if (Math.abs(raw - nearestPos) <= SNAP_THRESHOLD) target = nearestPos;
       }
       // 完成仪式：到达终点时把手脉冲 + 轨道闪烁 + 成功触觉
@@ -540,7 +544,7 @@ export default function TaskCard({
 
         {/* ── 多节点：圆点 + 标签 ── */}
         {barWidth > 0 && nodeCount > 1 && nodes.map((node, i) => {
-          const nodePos = i * step;
+          const nodePos = (i + 1) * step;
           const leftPx = nodePos * barWidth;
           const isCompleted = nodePos <= progress + 0.001;
           const isAbove = i % 2 === 0;
@@ -549,8 +553,8 @@ export default function TaskCard({
           const dotLeft = Math.max(0, leftPx - NODE_DOT_R);
           const dotTop = DOT_TOP;
 
-          // 动态标签最大宽度：节点间距的一半，防止相邻标签重叠
-          const dynamicMaxWidth = Math.min(LABEL_MAX_WIDTH, barWidth / (nodeCount - 1));
+          // 动态标签最大宽度：按节点数等分轨道，防止相邻标签重叠
+          const dynamicMaxWidth = Math.min(LABEL_MAX_WIDTH, barWidth / nodeCount);
           let labelLeft = leftPx - dynamicMaxWidth / 2;
           if (isFirst) labelLeft = 0;
           if (isLast) labelLeft = Math.max(0, barWidth - dynamicMaxWidth);
@@ -567,9 +571,8 @@ export default function TaskCard({
                 color={color}
                 snapPoint={nodePos}
                 progressValue={dragProgress}
-                position={isFirst
-                  ? { left: -NODE_DOT_R }
-                  : isLast
+                // 新布局：首节点不再贴轨道左边缘，与中间节点同样居中定位；末节点仍贴右边缘保持视觉完整
+                position={isLast
                   ? { right: -NODE_DOT_R }
                   : { left: dotLeft }}
               />
