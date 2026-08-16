@@ -51,6 +51,7 @@ const LABEL_DOT_GAP = 0; // 上方节点标签到圆点的间距
 const LABEL_MARGIN = 0; // 标签区域边距（去掉，压缩高度）
 const TRACK_GAP = 4; // 下方节点标签到轨道的间距（压缩，与上方视觉一致）
 const SNAP_THRESHOLD = 0.08; // 磁性吸附阈值：距最近节点 < 轨道宽度 8% 时吸附到该节点
+const FORCE_SNAP_MIN_NODES = 6; // 节点数 >= 该值时不支持随意停留，松手强制吸附最近节点
 
 
 
@@ -211,7 +212,8 @@ export default function TaskCard({
       'worklet';
       isDragging.value = false;
       const raw = dragProgress.value;
-      // 磁性吸附：距最近节点小于轨道宽度 8% 时吸附到该节点
+      // 磁性吸附：距最近节点小于轨道宽度 8% 时吸附到该节点；
+      // 节点数 >= FORCE_SNAP_MIN_NODES 时强制吸附最近节点（只能停留在节点上）
       let target = raw;
       if (nodeCount === 1) {
         // 单节点仅在最右端：接近终点即吸附到 1（完整完成）
@@ -220,7 +222,9 @@ export default function TaskCard({
         // 新布局：节点位于 (nearest+1)/nodeCount
         const nearest = Math.max(0, Math.min(nodeCount - 1, Math.round(raw * nodeCount) - 1));
         const nearestPos = (nearest + 1) * step;
-        if (Math.abs(raw - nearestPos) <= SNAP_THRESHOLD) target = nearestPos;
+        if (nodeCount >= FORCE_SNAP_MIN_NODES || Math.abs(raw - nearestPos) <= SNAP_THRESHOLD) {
+          target = nearestPos;
+        }
       }
       // 完成仪式：到达终点时把手脉冲 + 轨道闪烁 + 成功触觉
       const isComplete = target >= 1 - 0.001;
