@@ -560,7 +560,6 @@ export default function TaskCard({
           // 动态标签最大宽度：按节点数等分轨道，防止相邻标签重叠
           const dynamicMaxWidth = Math.min(LABEL_MAX_WIDTH, barWidth / nodeCount);
           let labelLeft = leftPx - dynamicMaxWidth / 2;
-          if (isFirst) labelLeft = 0;
           if (isLast) labelLeft = Math.max(0, barWidth - dynamicMaxWidth);
           labelLeft = Math.max(0, Math.min(barWidth - dynamicMaxWidth, labelLeft));
 
@@ -650,7 +649,7 @@ export default function TaskCard({
                       color: isCompleted ? color : '#9CA3AF',
                       fontFamily: 'System',
                       fontWeight: isCompleted ? '500' : '400',
-                      textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
+                      textAlign: isFirst ? (labelLeft === 0 ? 'right' : 'center') : isLast ? 'right' : 'center',
                     }}
                     numberOfLines={LABEL_ROWS}
                   >
@@ -668,7 +667,7 @@ export default function TaskCard({
                         color: isCompleted ? color : '#9CA3AF',
                         fontFamily: 'System',
                         fontWeight: isCompleted ? '500' : '400',
-                        textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
+                        textAlign: isFirst ? (labelLeft === 0 ? 'right' : 'center') : isLast ? 'right' : 'center',
                       }}
                       numberOfLines={LABEL_ROWS}
                     >
