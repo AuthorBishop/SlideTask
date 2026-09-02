@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { ChevronDown, Target } from 'lucide-react-native';
 
 import { TaskWithNodes } from '@/types/types';
+import { useConfirm } from '@/ctx/confirm';
 import TaskCard from '@/components/tasks/TaskCard';
 
 interface FocusModeViewProps {
@@ -21,13 +22,25 @@ interface FocusModeViewProps {
  * 单任务专注模式视图
  * 抽取并设为今日焦点后，首页只展示焦点任务；
  * 其余任务折叠到一个"查看其他 N 个任务"按钮，点击可展开/收起（仍在专注模式）；
- * 屏幕底部固定灰色小字"离开"，点击退出专注模式恢复完整列表。
+ * 屏幕底部固定灰色小字"离开专注模式"，点击先弹确认框，确认才退出专注模式；
+ * 退出仅关闭开关并保留今日焦点，之后可随时经焦点卡/重新抽取再次进入专注。
  */
 export default function FocusModeView({ task, otherTasks, onLeave, onUpdate }: FocusModeViewProps) {
   const router = useRouter();
+  const { showConfirm } = useConfirm();
   const [expanded, setExpanded] = useState(false);
   const otherCount = otherTasks.length;
   const openDetail = (taskId: string) => router.push(`/(app)/task/${taskId}`);
+
+  // 底部"离开专注模式"：先确认再退出；退出仍保留今日焦点，方便再次进入
+  const handleLeavePress = async () => {
+    const ok = await showConfirm({
+      title: '离开专注模式',
+      message: '确定要离开专注模式吗？离开后仍保留今日焦点，可随时再次进入专注。',
+      confirmText: '离开',
+    });
+    if (ok) onLeave();
+  };
 
   return (
     <View className="flex-1">
@@ -89,14 +102,14 @@ export default function FocusModeView({ task, otherTasks, onLeave, onUpdate }: F
         )}
       </ScrollView>
 
-      {/* 底部固定：灰色小字"离开" */}
+      {/* 底部固定：灰色小字"离开专注模式"，点击弹确认框 */}
       <View className="items-center pb-5 pt-1">
-        <Pressable onPress={onLeave} hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}>
+        <Pressable onPress={handleLeavePress} hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}>
           <Text
             className="text-xs font-glow-sans-sc"
             style={{ color: '#9CA3AF', textDecorationLine: 'underline' }}
           >
-            离开
+            离开专注模式
           </Text>
         </Pressable>
       </View>
