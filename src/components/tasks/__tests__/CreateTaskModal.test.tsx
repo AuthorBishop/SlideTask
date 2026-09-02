@@ -115,4 +115,33 @@ describe('CreateTaskModal', () => {
     expect(firstNode.length).toBe(1);
     expect(secondNode.length).toBe(1);
   });
+
+  it('成功创建后默认选中色在 TASK_COLORS 中按顺序循环推进', async () => {
+    const TASK_COLORS = require('@/types/types').TASK_COLORS;
+    mockCreateTask.mockResolvedValueOnce('task-1');
+    mockCreateTask.mockResolvedValueOnce('task-2');
+    const onCreated = jest.fn();
+    const { getByText, getByPlaceholderText, getAllByPlaceholderText } = render(
+      <CreateTaskModal visible={true} onClose={jest.fn()} onCreated={onCreated} />
+    );
+
+    // 第一次创建：默认色 = TASK_COLORS[0]
+    fireEvent.changeText(getByPlaceholderText('给任务起个名字…'), '任务一');
+    fireEvent.changeText(getAllByPlaceholderText(/第 1 步/)[0], '第一步');
+    await act(async () => {
+      fireEvent.press(getByText('创建任务'));
+    });
+    expect(mockCreateTask).toHaveBeenCalledTimes(1);
+    expect(mockCreateTask.mock.calls[0][1]).toBe(TASK_COLORS[0]);
+    expect(onCreated).toHaveBeenCalledTimes(1);
+
+    // 第二次创建：默认色推进到 TASK_COLORS[1]
+    fireEvent.changeText(getByPlaceholderText('给任务起个名字…'), '任务二');
+    fireEvent.changeText(getAllByPlaceholderText(/第 1 步/)[0], '第一步');
+    await act(async () => {
+      fireEvent.press(getByText('创建任务'));
+    });
+    expect(mockCreateTask).toHaveBeenCalledTimes(2);
+    expect(mockCreateTask.mock.calls[1][1]).toBe(TASK_COLORS[1]);
+  });
 });

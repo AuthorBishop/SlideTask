@@ -17,6 +17,10 @@ import Animated, {
 import { X, Plus, Minus } from 'lucide-react-native';
 import { TASK_COLORS } from '@/types/types';
 import { createTask } from '@/db/api';
+import { getSetting, setSetting } from '@/lib/database';
+
+// 颜色游标存储键：记录“下一次新建任务默认选中的颜色索引”，跨会话持续按序循环
+const COLOR_CURSOR_KEY = 'task_color_cursor';
 
 interface CreateTaskModalProps {
   visible: boolean;
@@ -39,6 +43,16 @@ export default function CreateTaskModal({ visible, onClose, onCreated }: CreateT
     if (visible) {
       bgAnim.value = withTiming(1, { duration: 240 });
       slideAnim.value = withSpring(0, { damping: 22, stiffness: 180 });
+      // 每次打开弹窗：从已保存的颜色游标恢复默认选中色（无记录则用首个颜色）
+      getSetting(COLOR_CURSOR_KEY)
+        .then((v) => {
+          if (v == null) return;
+          const idx = parseInt(v, 10);
+          if (Number.isNaN(idx)) return;
+          const i = ((idx % TASK_COLORS.length) + TASK_COLORS.length) % TASK_COLORS.length;
+          setSelectedColor(TASK_COLORS[i]);
+        })
+        .catch(() => {});
     } else {
       bgAnim.value = withTiming(0, { duration: 200 });
       slideAnim.value = withTiming(300, { duration: 220 });
@@ -76,11 +90,14 @@ export default function CreateTaskModal({ visible, onClose, onCreated }: CreateT
     setSaving(true);
     try {
       await createTask(title, selectedColor, note, validNodes);
-      // 重置表单
+      // 重置表单；默认色推进到“本次实际用色”的下一个，按顺序循环使列表颜色多样
+      const usedIdx = TASK_COLORS.indexOf(selectedColor);
+      const colorIdx = ((usedIdx >= 0 ? usedIdx : -1) + 1) % TASK_COLORS.length;
       setTitle('');
       setNote('');
       setNodes(['', '']);
-      setSelectedColor(TASK_COLORS[0]);
+      setSelectedColor(TASK_COLORS[colorIdx]);
+      setSetting(COLOR_CURSOR_KEY, String(colorIdx)).catch(() => {});
       setErrorMsg('');
       onCreated();
       onClose();

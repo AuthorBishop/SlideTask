@@ -28,7 +28,6 @@ import TaskCard from '@/components/tasks/TaskCard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import DemoTaskCard from '@/components/tasks/DemoTaskCard';
-import DailyFocusCard from '@/components/home/DailyFocusCard';
 import FocusModeView from '@/components/home/FocusModeView';
 import { getTodayFocus, getFocusMode, setFocusMode } from '@/utils/focus';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
@@ -290,7 +289,7 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // 退出专注模式：仅关开关，保留今日焦点（普通列表仍显示焦点卡）
+  // 退出专注模式：仅关开关；普通列表不再展示焦点卡，重新进入专注需通过“选择困难”抽取
   const handleLeaveFocus = useCallback(async () => {
     await setFocusMode(false);
     setFocusModeOn(false);
@@ -417,7 +416,6 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>
-              {focusTask && <DailyFocusCard task={focusTask} onChanged={loadFocus} />}
               {tasks.length >= 2 && (
                 <Pressable
                   onPress={() => router.push('/(app)/pick')}

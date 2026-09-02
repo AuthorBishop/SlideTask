@@ -135,7 +135,7 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
-// Mock expo-sqlite
+// Mock expo-sqlite（同步 + 异步 API 均提供，lib/database 走 async 模式）
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: jest.fn(() => ({
     execSync: jest.fn(),
@@ -144,6 +144,15 @@ jest.mock('expo-sqlite', () => ({
     getFirstSync: jest.fn(() => null),
     closeSync: jest.fn(),
   })),
+  openDatabaseAsync: jest.fn(() =>
+    Promise.resolve({
+      execAsync: jest.fn(async () => {}),
+      runAsync: jest.fn(async () => {}),
+      getAllAsync: jest.fn(async () => []),
+      getFirstAsync: jest.fn(async () => null),
+      closeAsync: jest.fn(async () => {}),
+    })
+  ),
 }));
 
 // Mock expo-router
