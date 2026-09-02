@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Eye, Plus, Sparkles, Compass, Type, X, Settings as SettingsIcon } from 'lucide-react-native';
+import { Eye, Plus, Sparkles, Compass, Type, X, Settings as SettingsIcon, Shuffle } from 'lucide-react-native';
 import Animated, {
   SharedValue,
   useSharedValue,
@@ -28,6 +28,8 @@ import TaskCard from '@/components/tasks/TaskCard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import DemoTaskCard from '@/components/tasks/DemoTaskCard';
+import DailyFocusCard from '@/components/home/DailyFocusCard';
+import { getTodayFocus } from '@/utils/focus';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
 import {
   DropdownMenu,
@@ -188,6 +190,7 @@ export default function HomeScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [showGuidePreview, setShowGuidePreview] = useState(false);
   const [showDemoPreview, setShowDemoPreview] = useState(false);
+  const [focusTask, setFocusTask] = useState<TaskWithNodes | null>(null);
   const { level, label, nextLevel } = useFontSize();
 
   // 引导页状态
@@ -272,10 +275,21 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const loadFocus = useCallback(async () => {
+    try {
+      const task = await getTodayFocus();
+      setFocusTask(task);
+    } catch (e) {
+      console.error('加载今日焦点失败', e);
+      setFocusTask(null);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadTasks();
-    }, [loadTasks])
+      loadFocus();
+    }, [loadTasks, loadFocus])
   );
 
   const handleOpenDetail = (taskId: string) => {
@@ -377,6 +391,35 @@ export default function HomeScreen() {
           }}
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <>
+              {focusTask && <DailyFocusCard task={focusTask} onChanged={loadFocus} />}
+              {tasks.length >= 2 && (
+                <Pressable
+                  onPress={() => router.push('/(app)/pick')}
+                  className="flex-row items-center justify-between rounded-2xl mb-4 px-4 py-3.5"
+                  style={{ backgroundColor: '#EEF2FF' }}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <View className="w-8 h-8 items-center justify-center rounded-full" style={{ backgroundColor: '#FFFFFF' }}>
+                      <Shuffle size={15} color="#6366F1" />
+                    </View>
+                    <View>
+                      <Text className="text-sm font-glow-sans-sc font-semibold" style={{ color: '#4338CA' }}>
+                        选择困难？
+                      </Text>
+                      <Text className="text-xs font-glow-sans-sc" style={{ color: '#6366F1' }}>
+                        让随机帮你决定先做哪个
+                      </Text>
+                    </View>
+                  </View>
+                  <Text className="text-lg font-glow-sans-sc" style={{ color: '#6366F1' }}>
+                    ›
+                  </Text>
+                </Pressable>
+              )}
+            </>
+          }
           renderItem={({ item }) => (
             <TaskCard
               task={item}

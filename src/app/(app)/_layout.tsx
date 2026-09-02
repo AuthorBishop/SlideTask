@@ -23,6 +23,7 @@ export default function AppLayout() {
               options={{ animation: 'slide_from_right' }}
             />
             <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="pick" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </Stack>
         </ConfirmProvider>
       </FontSizeProvider>
