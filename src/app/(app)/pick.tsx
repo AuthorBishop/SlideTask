@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { fetchTasksWithNodes } from '@/db/api';
-import { setTodayFocus } from '@/utils/focus';
+import { setTodayFocus, setFocusMode } from '@/utils/focus';
 import { TaskWithNodes } from '@/types/types';
 
 const SPIN_TICK_MS = 90; // 洗牌切换间隔
@@ -88,7 +88,12 @@ export default function PickScreen() {
 
   const handlePick = useCallback(() => {
     if (phase === 'result' && result) {
-      void setTodayFocus(result.id).then(() => router.back());
+      // 设为今日焦点并开启专注模式：回到首页即进入"单任务专注"视图
+      void (async () => {
+        await setTodayFocus(result.id);
+        await setFocusMode(true);
+        router.back();
+      })();
     }
   }, [phase, result, router]);
 

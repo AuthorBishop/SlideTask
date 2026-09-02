@@ -29,7 +29,8 @@ import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import DemoTaskCard from '@/components/tasks/DemoTaskCard';
 import DailyFocusCard from '@/components/home/DailyFocusCard';
-import { getTodayFocus } from '@/utils/focus';
+import FocusModeView from '@/components/home/FocusModeView';
+import { getTodayFocus, getFocusMode, setFocusMode } from '@/utils/focus';
 import { useFontSize, FONT_SIZE_LABELS } from '@/ctx/fontSize';
 import {
   DropdownMenu,
@@ -191,6 +192,7 @@ export default function HomeScreen() {
   const [showGuidePreview, setShowGuidePreview] = useState(false);
   const [showDemoPreview, setShowDemoPreview] = useState(false);
   const [focusTask, setFocusTask] = useState<TaskWithNodes | null>(null);
+  const [focusMode, setFocusModeOn] = useState(false);
   const { level, label, nextLevel } = useFontSize();
 
   // 引导页状态
@@ -279,11 +281,26 @@ export default function HomeScreen() {
     try {
       const task = await getTodayFocus();
       setFocusTask(task);
+      // 只有今日焦点有效时才可能处于专注模式（焦点过期/完成会自动关闭）
+      setFocusModeOn(task ? await getFocusMode() : false);
     } catch (e) {
       console.error('加载今日焦点失败', e);
       setFocusTask(null);
+      setFocusModeOn(false);
     }
   }, []);
+
+  // 退出专注模式：仅关开关，保留今日焦点（普通列表仍显示焦点卡）
+  const handleLeaveFocus = useCallback(async () => {
+    await setFocusMode(false);
+    setFocusModeOn(false);
+  }, []);
+
+  // 专注模式下任务进度/状态变化：同时刷新任务列表与今日焦点（任务完成会自动退出专注）
+  const handleFocusUpdate = useCallback(() => {
+    loadTasks();
+    loadFocus();
+  }, [loadTasks, loadFocus]);
 
   useFocusEffect(
     useCallback(() => {
@@ -376,11 +393,18 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 任务列表 */}
+      {/* 任务列表：专注模式开启且有今日焦点 → 单任务专注视图；否则完整列表 */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#6366F1" />
         </View>
+      ) : focusTask && focusMode ? (
+        <FocusModeView
+          task={focusTask}
+          otherTasks={tasks.filter((t) => t.id !== focusTask.id)}
+          onLeave={handleLeaveFocus}
+          onUpdate={handleFocusUpdate}
+        />
       ) : (
         <FlatList
           data={tasks}

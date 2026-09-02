@@ -1,7 +1,7 @@
 /**
  * 今日焦点（每日只做一件）数据读写
- * 存储于 settings 键值表：focus_date（YYYY-MM-DD）+ focus_task_id
- * 日期跨天自动视为过期，读取时懒清理
+ * 存储于 settings 键值表：focus_date（YYYY-MM-DD）+ focus_task_id + focus_mode
+ * focus_mode 标记"单任务专注模式"开关，跟随今日焦点，日期跨天自动视为过期，读取时懒清理
  */
 import { getSetting, setSetting } from '@/lib/database';
 import { fetchTaskById } from '@/db/api';
@@ -9,6 +9,7 @@ import { TaskWithNodes } from '@/types/types';
 
 const FOCUS_DATE_KEY = 'focus_date';
 const FOCUS_TASK_ID_KEY = 'focus_task_id';
+const FOCUS_MODE_KEY = 'focus_mode';
 
 /** 本地日期 YYYY-MM-DD */
 export function todayString(d: Date = new Date()): string {
@@ -33,13 +34,22 @@ export async function getTodayFocus(): Promise<TaskWithNodes | null> {
       await Promise.all([
         setSetting(FOCUS_DATE_KEY, ''),
         setSetting(FOCUS_TASK_ID_KEY, ''),
+        setSetting(FOCUS_MODE_KEY, ''),
       ]);
     }
     return null;
   }
 
   const task = await fetchTaskById(taskId);
-  if (!task || task.completed_at) return null;
+  if (!task || task.completed_at) {
+    // 任务不存在或已完成：焦点失效，同步关闭专注模式
+    await Promise.all([
+      setSetting(FOCUS_DATE_KEY, ''),
+      setSetting(FOCUS_TASK_ID_KEY, ''),
+      setSetting(FOCUS_MODE_KEY, ''),
+    ]);
+    return null;
+  }
   return task;
 }
 
@@ -56,5 +66,17 @@ export async function clearTodayFocus(): Promise<void> {
   await Promise.all([
     setSetting(FOCUS_DATE_KEY, ''),
     setSetting(FOCUS_TASK_ID_KEY, ''),
+    setSetting(FOCUS_MODE_KEY, ''),
   ]);
+}
+
+/** 是否处于单任务专注模式 */
+export async function getFocusMode(): Promise<boolean> {
+  const v = await getSetting(FOCUS_MODE_KEY);
+  return v === '1';
+}
+
+/** 开启 / 关闭单任务专注模式 */
+export async function setFocusMode(on: boolean): Promise<void> {
+  await setSetting(FOCUS_MODE_KEY, on ? '1' : '');
 }

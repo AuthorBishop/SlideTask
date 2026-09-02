@@ -1,11 +1,11 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { RefreshCw, Target, X } from 'lucide-react-native';
+import { Focus, RefreshCw, Target, X } from 'lucide-react-native';
 
 import { TaskWithNodes } from '@/types/types';
 import { useConfirm } from '@/ctx/confirm';
-import { clearTodayFocus } from '@/utils/focus';
+import { clearTodayFocus, setFocusMode } from '@/utils/focus';
 
 interface DailyFocusCardProps {
   task: TaskWithNodes;
@@ -38,6 +38,12 @@ export default function DailyFocusCard({ task, onChanged }: DailyFocusCardProps)
     }
   };
 
+  // 从普通列表重新进入单任务专注模式（"离开"后的回归入口）
+  const handleEnterFocus = async () => {
+    await setFocusMode(true);
+    onChanged();
+  };
+
   return (
     <View
       className="rounded-2xl overflow-hidden mb-4"
@@ -58,22 +64,32 @@ export default function DailyFocusCard({ task, onChanged }: DailyFocusCardProps)
             {task.title}
           </Text>
         </View>
-        <Pressable
-          onPress={() => router.push('/(app)/pick')}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          className="w-9 h-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: '#F3F4F6' }}
-        >
-          <RefreshCw size={15} color="#6B7280" />
-        </Pressable>
-        <Pressable
-          onPress={handleClear}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          className="w-9 h-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: '#F3F4F6' }}
-        >
-          <X size={15} color="#6B7280" />
-        </Pressable>
+        <View className="flex-row items-center gap-1.5">
+          <Pressable
+            onPress={handleEnterFocus}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="w-7 h-7 items-center justify-center rounded-full"
+            style={{ backgroundColor: `${task.color}22` }}
+          >
+            <Focus size={13} color={task.color} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/(app)/pick')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="w-7 h-7 items-center justify-center rounded-full"
+            style={{ backgroundColor: '#F3F4F6' }}
+          >
+            <RefreshCw size={13} color="#6B7280" />
+          </Pressable>
+          <Pressable
+            onPress={handleClear}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="w-7 h-7 items-center justify-center rounded-full"
+            style={{ backgroundColor: '#F3F4F6' }}
+          >
+            <X size={13} color="#6B7280" />
+          </Pressable>
+        </View>
       </View>
 
       {/* 进度条：点击卡片主体进入任务详情 */}
