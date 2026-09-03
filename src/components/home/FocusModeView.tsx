@@ -71,7 +71,8 @@ export default function FocusModeView({ task, otherTasks, onLeave, onUpdate }: F
             </Text>
           </View>
           <View className="px-2 pb-1">
-            <TaskCard task={task} onUpdate={onUpdate} onOpenDetail={openDetail} />
+            {/* 外层已展示任务标题，隐藏 TaskCard 内部标题行避免重复 */}
+            <TaskCard task={task} onUpdate={onUpdate} onOpenDetail={openDetail} hideTitle />
           </View>
         </View>
 
