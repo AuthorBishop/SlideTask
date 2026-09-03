@@ -2,15 +2,24 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Check, Music4, Tag, Vibrate, X } from 'lucide-react-native';
+import { Bell, Check, Music4, Tag, Vibrate, X } from 'lucide-react-native';
 import { useSettings, SOUND_PACK_OPTIONS } from '@/ctx/settings';
 import { playDone } from '@/utils/sounds';
+import { isReminderSupported } from '@/utils/reminder';
 import { getChannel, setChannel } from '@/lib/analytics';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { soundEnabled, hapticEnabled, soundPack, setSoundEnabled, setHapticEnabled, setSoundPack } =
-    useSettings();
+  const {
+    soundEnabled,
+    hapticEnabled,
+    soundPack,
+    reminderEnabled,
+    setSoundEnabled,
+    setHapticEnabled,
+    setSoundPack,
+    setReminderEnabled,
+  } = useSettings();
 
   // 渠道口令（增长归因）
   const [channelCode, setChannelCode] = useState<string | null>(null);
@@ -52,6 +61,38 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} className="flex-1">
+        {/* 每日提醒：开启即请求系统通知权限（需用户手势），Web 端不支持 */}
+        <View className="rounded-2xl overflow-hidden mb-6" style={{ backgroundColor: '#FFFFFF' }}>
+          <View className="flex-row items-center justify-between px-4 py-4">
+            <View className="flex-row items-center gap-3 flex-1">
+              <View className="w-9 h-9 items-center justify-center rounded-full" style={{ backgroundColor: '#EEF2FF' }}>
+                <Bell size={17} color="#6366F1" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-glow-sans-sc text-foreground font-medium">每日提醒</Text>
+                <Text className="text-xs font-glow-sans-sc text-muted-foreground mt-0.5">
+                  每晚 20:00 提醒你推进一个节点
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={reminderEnabled}
+              disabled={!isReminderSupported()}
+              onValueChange={(v) => setReminderEnabled(v)}
+              trackColor={{ false: '#E5E7EB', true: '#A5B4FC' }}
+              thumbColor={reminderEnabled ? '#6366F1' : '#FFFFFF'}
+            />
+          </View>
+          {!isReminderSupported() && (
+            <View className="h-px mx-4" style={{ backgroundColor: '#F3F4F6' }} />
+          )}
+          {!isReminderSupported() && (
+            <Text className="text-xs font-glow-sans-sc text-muted-foreground px-4 py-2">
+              每日提醒仅支持手机端，请在手机上打开此开关
+            </Text>
+          )}
+        </View>
+
         {/* 反馈开关 */}
         <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
           <View className="flex-row items-center justify-between px-4 py-4">

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Eye, Plus, Sparkles, Compass, Type, X, Settings as SettingsIcon, Shuffle } from 'lucide-react-native';
+import { Eye, Plus, Sparkles, Compass, Type, X, Settings as SettingsIcon, Shuffle, LayoutTemplate, MoveRight } from 'lucide-react-native';
 import Animated, {
   SharedValue,
   useSharedValue,
@@ -26,6 +26,7 @@ import { getSetting, setSetting } from '@/lib/database';
 import { TaskWithNodes } from '@/types/types';
 import TaskCard from '@/components/tasks/TaskCard';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
+import TemplatePickerModal from '@/components/tasks/TemplatePickerModal';
 import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 import DemoTaskCard from '@/components/tasks/DemoTaskCard';
 import FocusModeView from '@/components/home/FocusModeView';
@@ -183,6 +184,23 @@ function EmptyStateNodeDot({
   );
 }
 
+// 空态入口：从模板快速开始（比空白创建更容易迈出第一步）
+function TemplateStartButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      className="mt-4 flex-row items-center gap-1.5 px-4 py-2.5 rounded-full"
+      style={{ backgroundColor: '#EEF2FF' }}
+    >
+      <LayoutTemplate size={15} color="#4338CA" />
+      <Text className="text-sm font-glow-sans-sc font-medium" style={{ color: '#4338CA' }}>
+        从模板开始
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const [tasks, setTasks] = useState<TaskWithNodes[]>([]);
@@ -220,6 +238,52 @@ export default function HomeScreen() {
   const handleDismissDemo = useCallback(async () => {
     await setSetting('hide_demo', '1');
     setHideDemo(true);
+  }, []);
+
+  // 模板引导：从未标记过且当前没有任务 → 自动弹出模板选择（导入或跳过后不再出现）
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [templateIntroDone, setTemplateIntroDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getSetting('template_intro_done')
+      .then((v) => setTemplateIntroDone(v === '1'))
+      .catch(() => setTemplateIntroDone(true));
+  }, []);
+
+  useEffect(() => {
+    if (templateIntroDone === false && !loading && tasks.length === 0) {
+      setShowTemplatePicker(true);
+    }
+  }, [templateIntroDone, loading, tasks.length]);
+
+  const handleTemplateIntroDone = useCallback(async () => {
+    await setSetting('template_intro_done', '1');
+    setTemplateIntroDone(true);
+    setShowTemplatePicker(false);
+  }, []);
+
+  const handleTemplateImported = useCallback(async () => {
+    await handleTemplateIntroDone();
+    loadTasks();
+  }, [handleTemplateIntroDone, loadTasks]);
+
+  // 首日推进提示：已有任务但一条都没推动时，提示拖动把手；关闭后不再出现
+  const [dragHintDismissed, setDragHintDismissed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getSetting('drag_hint_dismissed')
+      .then((v) => setDragHintDismissed(v === '1'))
+      .catch(() => setDragHintDismissed(true));
+  }, []);
+
+  const showDragHint =
+    dragHintDismissed === false &&
+    tasks.length > 0 &&
+    tasks.every((t) => t.progress_position === 0);
+
+  const handleDismissDragHint = useCallback(async () => {
+    await setSetting('drag_hint_dismissed', '1');
+    setDragHintDismissed(true);
   }, []);
 
   // CTA 脉冲动画：无真实任务且未隐藏示例 → 延时 5 秒开始脉冲
@@ -440,6 +504,25 @@ export default function HomeScreen() {
                   </Text>
                 </Pressable>
               )}
+
+              {/* 首日推进提示：一条都没推动过时提示拖动，关闭后不再出现 */}
+              {showDragHint && (
+                <View
+                  className="flex-row items-center rounded-2xl mb-4 px-4 py-3"
+                  style={{ backgroundColor: '#EEF2FF' }}
+                >
+                  <MoveRight size={15} color="#6366F1" />
+                  <Text
+                    className="flex-1 text-sm font-glow-sans-sc ml-2.5"
+                    style={{ color: '#4338CA' }}
+                  >
+                    拖动卡片上的把手，推进到第一个节点
+                  </Text>
+                  <Pressable onPress={handleDismissDragHint} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <X size={15} color="#6366F1" />
+                  </Pressable>
+                </View>
+              )}
             </>
           }
           renderItem={({ item }) => (
@@ -461,6 +544,7 @@ export default function HomeScreen() {
                   <Text className="text-sm font-glow-sans-sc text-muted-foreground text-center">
                     点击右下角 + 创建第一个任务
                   </Text>
+                  <TemplateStartButton onPress={() => setShowTemplatePicker(true)} />
                 </View>
               </View>
             ) : (
@@ -472,6 +556,7 @@ export default function HomeScreen() {
                 <Text className="text-sm font-glow-sans-sc text-muted-foreground text-center">
                   点击右下角 + 创建第一个任务
                 </Text>
+                <TemplateStartButton onPress={() => setShowTemplatePicker(true)} />
               </View>
             )
           }
@@ -544,6 +629,13 @@ export default function HomeScreen() {
         visible={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={loadTasks}
+      />
+
+      {/* 模板选择：首日引导自动弹出，或空态点击「从模板开始」 */}
+      <TemplatePickerModal
+        visible={showTemplatePicker}
+        onClose={handleTemplateIntroDone}
+        onImported={handleTemplateImported}
       />
 
       {/* 开发预览：引导页（与首次体验完全一致，onComplete 只关闭弹窗、不写完成标记） */}

@@ -3,6 +3,7 @@
  * 所有操作均通过 dbReady Promise 串行，零网络延迟
  */
 import { dbReady, newId } from '@/lib/database';
+import { getTemplate } from '@/lib/templates';
 import { Task, TaskNode, TaskWithNodes } from '@/types/types';
 
 // ─── 任务列表（含节点）─────────────────────────────────────
@@ -150,6 +151,13 @@ export async function addNode(taskId: string, title: string, position: number): 
 export async function deleteNode(nodeId: string): Promise<void> {
   const db = await dbReady;
   await db.runAsync(`DELETE FROM task_nodes WHERE id = ?`, [nodeId]);
+}
+
+// ─── 从模板创建任务（返回新任务 id，模板不存在返回 null）──
+export async function createTaskFromTemplate(templateId: string): Promise<string | null> {
+  const tpl = getTemplate(templateId);
+  if (!tpl) return null;
+  return createTask(tpl.title, tpl.color, tpl.note, tpl.nodes);
 }
 
 // ─── 批量更新节点顺序（保留接口，兼容旧调用）─────────────

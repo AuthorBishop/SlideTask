@@ -13,11 +13,13 @@ import {
 } from 'react';
 import { getSetting, setSetting } from '@/lib/database';
 import { feedbackSettings, type SoundPackId } from '@/utils/feedbackSettings';
+import { scheduleDailyReminder, cancelDailyReminder } from '@/utils/reminder';
 
 const KEYS = {
   sound: 'feedback_sound_enabled',
   haptic: 'feedback_haptic_enabled',
   pack: 'feedback_sound_pack',
+  reminder: 'reminder_enabled',
 } as const;
 
 export type SoundPackOption = {
@@ -39,6 +41,8 @@ type SettingsContextType = {
   setSoundEnabled: (v: boolean) => void;
   setHapticEnabled: (v: boolean) => void;
   setSoundPack: (v: SoundPackId) => void;
+  reminderEnabled: boolean;
+  setReminderEnabled: (v: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -47,21 +51,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const [hapticEnabled, setHapticEnabledState] = useState(true);
   const [soundPack, setSoundPackState] = useState<SoundPackId>('A');
+  const [reminderEnabled, setReminderEnabledState] = useState(false);
 
   // 从 SQLite 读取持久化设置
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const [s, h, p] = await Promise.all([
+        const [s, h, p, r] = await Promise.all([
           getSetting(KEYS.sound),
           getSetting(KEYS.haptic),
           getSetting(KEYS.pack),
+          getSetting(KEYS.reminder),
         ]);
         if (!active) return;
         if (s !== null) setSoundEnabledState(s !== '0');
         if (h !== null) setHapticEnabledState(h !== '0');
         if (p === 'B' || p === 'C') setSoundPackState(p);
+        if (r !== null) setReminderEnabledState(r !== '0');
       } catch {
         // 读取失败使用默认值
       }
@@ -93,9 +100,36 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSetting(KEYS.pack, v).catch(() => {});
   }, []);
 
+  // 每日提醒：开启需获得系统通知权限（由设置页 Switch 手势触发）；权限被拒则回落关闭
+  const setReminderEnabled = useCallback(async (v: boolean) => {
+    if (!v) {
+      setReminderEnabledState(false);
+      setSetting(KEYS.reminder, '0').catch(() => {});
+      cancelDailyReminder().catch(() => {});
+      return;
+    }
+    const ok = await scheduleDailyReminder();
+    if (!ok) {
+      setReminderEnabledState(false);
+      setSetting(KEYS.reminder, '0').catch(() => {});
+      return;
+    }
+    setReminderEnabledState(true);
+    setSetting(KEYS.reminder, '1').catch(() => {});
+  }, []);
+
   const value = useMemo(
-    () => ({ soundEnabled, hapticEnabled, soundPack, setSoundEnabled, setHapticEnabled, setSoundPack }),
-    [soundEnabled, hapticEnabled, soundPack, setSoundEnabled, setHapticEnabled, setSoundPack]
+    () => ({
+      soundEnabled,
+      hapticEnabled,
+      soundPack,
+      reminderEnabled,
+      setSoundEnabled,
+      setHapticEnabled,
+      setSoundPack,
+      setReminderEnabled,
+    }),
+    [soundEnabled, hapticEnabled, soundPack, reminderEnabled, setSoundEnabled, setHapticEnabled, setSoundPack, setReminderEnabled]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

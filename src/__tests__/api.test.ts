@@ -33,6 +33,7 @@ import {
   addNode,
   deleteNode,
   reorderNodes,
+  createTaskFromTemplate,
 } from '@/db/api';
 
 // ── Helpers ──
@@ -150,6 +151,24 @@ describe('db/api — createTask(title, color, note, nodesTitles)', () => {
     const runCalls = __mockDb.runAsync.mock.calls;
     // 第 1 次调用是 INSERT task，后面只能有 1 次 INSERT node
     expect(runCalls.length).toBe(2);
+  });
+});
+
+describe('db/api — createTaskFromTemplate(templateId)', () => {
+  it('模板存在时一次写入任务与全部节点', async () => {
+    __mockDb.getFirstAsync.mockResolvedValue({ max_idx: 0 });
+    const id = await createTaskFromTemplate('exam-60d');
+    expect(id).toBe('test-id-001');
+    // INSERT task 1 次 + 6 个节点各 1 次 = 7 次
+    expect(__mockDb.runAsync).toHaveBeenCalledTimes(7);
+    const firstCall = __mockDb.runAsync.mock.calls[0];
+    expect(firstCall[1]).toEqual(expect.arrayContaining(['考研 60 天冲刺']));
+  });
+
+  it('模板不存在时返回 null 且不写库', async () => {
+    const id = await createTaskFromTemplate('no-such-template');
+    expect(id).toBeNull();
+    expect(__mockDb.runAsync).not.toHaveBeenCalled();
   });
 });
 
