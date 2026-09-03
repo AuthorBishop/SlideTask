@@ -7,9 +7,9 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ArrowLeft, RotateCcw } from 'lucide-react-native';
+import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchTasksWithNodes, uncompleteTask } from '@/db/api';
+import { fetchTasksWithNodes, uncompleteTask, deleteTask } from '@/db/api';
 import { TaskWithNodes } from '@/types/types';
 import { useConfirm } from '@/ctx/confirm';
 
@@ -50,6 +50,24 @@ export default function CompletedScreen() {
       await loadCompleted();
     } catch (e) {
       console.error('取消完成失败', e);
+    }
+  };
+
+  // 移除任务：不可恢复，二次确认
+  const handleDelete = async (taskId: string) => {
+    const confirmed = await showConfirm({
+      title: '移除任务',
+      message: '移除任务后不可恢复，确定吗？',
+      confirmText: '确定移除',
+      cancelText: '取消',
+      confirmColor: '#EF4444',
+    });
+    if (!confirmed) return;
+    try {
+      await deleteTask(taskId);
+      await loadCompleted();
+    } catch (e) {
+      console.error('移除任务失败', e);
     }
   };
 
@@ -127,6 +145,16 @@ export default function CompletedScreen() {
                 style={{ backgroundColor: '#E5E7EB' }}
               >
                 <RotateCcw size={16} color="#6B7280" />
+              </Pressable>
+
+              {/* 移除任务按钮（不可恢复，二次确认） */}
+              <Pressable
+                onPress={() => handleDelete(item.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="ml-2 p-2 rounded-full"
+                style={{ backgroundColor: '#FEE2E2' }}
+              >
+                <Trash2 size={16} color="#EF4444" />
               </Pressable>
             </View>
           )}
