@@ -4,11 +4,14 @@ import { FontSizeProvider } from '@/ctx/fontSize';
 import { ConfirmProvider } from '@/ctx/confirm';
 import { SettingsProvider } from '@/ctx/settings';
 import { preloadSounds } from '@/utils/sounds';
+import { ensureIdentity } from '@/lib/analytics';
 
 export default function AppLayout() {
   // 启动即预热音频（预下载 + 建播放器），消除首响滞后
   useEffect(() => {
     preloadSounds();
+    // 首次启动生成匿名 ID 与安装时间（留存统计的锚点，已存在不覆盖）
+    ensureIdentity().catch((e) => console.error('初始化匿名身份失败', e));
   }, []);
 
   return (

@@ -1,14 +1,38 @@
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Check, Music4, Vibrate, X } from 'lucide-react-native';
+import { Check, Music4, Tag, Vibrate, X } from 'lucide-react-native';
 import { useSettings, SOUND_PACK_OPTIONS } from '@/ctx/settings';
 import { playDone } from '@/utils/sounds';
+import { getChannel, setChannel } from '@/lib/analytics';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { soundEnabled, hapticEnabled, soundPack, setSoundEnabled, setHapticEnabled, setSoundPack } =
     useSettings();
+
+  // 渠道口令（增长归因）
+  const [channelCode, setChannelCode] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [invalid, setInvalid] = useState(false);
+
+  useEffect(() => {
+    getChannel().then(setChannelCode).catch(() => setChannelCode(null));
+  }, []);
+
+  const handleSaveChannel = async () => {
+    const res = await setChannel(draft);
+    if (!res.ok) {
+      setInvalid(true);
+      return;
+    }
+    setChannelCode(res.code);
+    setEditing(false);
+    setDraft('');
+    setInvalid(false);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
@@ -106,6 +130,76 @@ export default function SettingsScreen() {
               </View>
             );
           })}
+        </View>
+
+        {/* 渠道口令（增长归因） */}
+        <Text className="text-sm font-glow-sans-sc text-muted-foreground mt-6 mb-2 px-1">
+          渠道口令
+        </Text>
+        <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
+          <View className="px-4 py-4">
+            <View className="flex-row items-center">
+              <View className="w-9 h-9 items-center justify-center rounded-full" style={{ backgroundColor: '#EEF2FF' }}>
+                <Tag size={17} color="#6366F1" />
+              </View>
+              <View className="flex-1 ml-3">
+                <Text className="text-base font-glow-sans-sc text-foreground font-medium">
+                  {channelCode ?? '未设置'}
+                </Text>
+                <Text className="text-xs font-glow-sans-sc text-muted-foreground mt-0.5">
+                  输入博主口令码，帮我们了解你从哪里认识 SlideTask
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  setDraft('');
+                  setInvalid(false);
+                  setEditing((v) => !v);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="ml-2 px-3 py-1.5 rounded-full"
+                style={{ backgroundColor: '#F3F4F6' }}
+              >
+                <Text className="text-xs font-glow-sans-sc text-foreground">
+                  {editing ? '收起' : '设置'}
+                </Text>
+              </Pressable>
+            </View>
+
+            {editing && (
+              <View className="flex-row items-center gap-2 mt-3">
+                <TextInput
+                  value={draft}
+                  onChangeText={(t) => {
+                    setDraft(t);
+                    setInvalid(false);
+                  }}
+                  placeholder="例如 SLIDE-A"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveChannel}
+                  className="flex-1 px-3 py-2 rounded-xl font-sans text-sm text-foreground"
+                  style={{ backgroundColor: '#F9FAFB' }}
+                />
+                <Pressable
+                  onPress={handleSaveChannel}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  className="w-9 h-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: '#6366F1' }}
+                >
+                  <Check size={16} color="#FFFFFF" strokeWidth={3} />
+                </Pressable>
+              </View>
+            )}
+
+            {invalid && (
+              <Text className="text-xs font-glow-sans-sc mt-2" style={{ color: '#EF4444' }}>
+                口令码无效：仅支持 2-32 位字母、数字、- 和 _
+              </Text>
+            )}
+          </View>
         </View>
 
         <Text className="text-xs font-glow-sans-sc text-muted-foreground mt-4 px-1 leading-5">
