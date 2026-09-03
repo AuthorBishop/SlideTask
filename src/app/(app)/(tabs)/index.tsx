@@ -256,17 +256,6 @@ export default function HomeScreen() {
     }
   }, [templateIntroDone, loading, tasks.length]);
 
-  const handleTemplateIntroDone = useCallback(async () => {
-    await setSetting('template_intro_done', '1');
-    setTemplateIntroDone(true);
-    setShowTemplatePicker(false);
-  }, []);
-
-  const handleTemplateImported = useCallback(async () => {
-    await handleTemplateIntroDone();
-    loadTasks();
-  }, [handleTemplateIntroDone, loadTasks]);
-
   // 首日推进提示：已有任务但一条都没推动时，提示拖动把手；关闭后不再出现
   const [dragHintDismissed, setDragHintDismissed] = useState<boolean | null>(null);
 
@@ -339,6 +328,18 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, []);
+
+  // 模板引导的收尾回调：导入任务后关闭弹窗并刷新列表
+  const handleTemplateIntroDone = useCallback(async () => {
+    await setSetting('template_intro_done', '1');
+    setTemplateIntroDone(true);
+    setShowTemplatePicker(false);
+  }, []);
+
+  const handleTemplateImported = useCallback(async () => {
+    await handleTemplateIntroDone();
+    loadTasks();
+  }, [handleTemplateIntroDone, loadTasks]);
 
   const loadFocus = useCallback(async () => {
     try {
